@@ -16,7 +16,29 @@ const html = fs.readFileSync(input, 'utf8');
 // Extract <style>...</style>
 const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/);
 if (!styleMatch) throw new Error('Could not find <style> block');
-const css = styleMatch[1].trim();
+const rawCss = styleMatch[1].trim();
+
+// Scope every selector to #rx-lookup-widget so the widget's CSS cannot leak
+// out and affect the host page (e.g., GHL form buttons, body styles, etc.).
+// Keeps :root custom-property declarations global (they're variable defs, only
+// read by elements that reference them, which only exist inside the widget).
+// Drops body {} entirely — the host page owns body styles.
+function scopeCss(css, scope) {
+  return css.replace(/([^{}]+)\{([^{}]*)\}/g, (match, selector, body) => {
+    const sel = selector.trim();
+    if (sel === ':root') return `${sel} {${body}}`;
+    if (sel === 'body' || sel === 'html' || sel === 'html, body') return '';
+    const scoped = sel.split(',').map(part => {
+      const trimmed = part.trim();
+      if (!trimmed) return trimmed;
+      if (trimmed.startsWith(scope)) return trimmed;
+      return `${scope} ${trimmed}`;
+    }).join(', ');
+    return `${scoped} {${body}}`;
+  });
+}
+
+const css = scopeCss(rawCss, '#rx-lookup-widget');
 
 // Extract body content (between <body> ... </body>, trimmed)
 const bodyMatch = html.match(/<body>([\s\S]*?)<\/body>/);
