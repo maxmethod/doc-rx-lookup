@@ -37,7 +37,7 @@
     line-height: 1.5;
   }
 
-  .container { max-width: 780px; margin: 0 auto; }
+  .rx-container { max-width: 780px; margin: 0 auto; }
 
   h1 {
     font-size: 22px;
@@ -152,8 +152,8 @@
     text-decoration: underline;
   }
 
-  .row { display: flex; gap: 10px; align-items: end; }
-  .row > * { flex: 1; }
+  .rx-row { display: flex; gap: 10px; align-items: end; }
+  .rx-row > * { flex: 1; }
 
   button {
     font-family: var(--font);
@@ -334,7 +334,7 @@
 </style>
 </head>
 <body>
-<div class="container">
+<div class="rx-container">
   <h1>Medications &amp; Providers</h1>
   <p class="subtitle">Add any prescriptions you take and any doctors you want to keep in-network.</p>
 
@@ -358,7 +358,7 @@
     <div id="med-strength-block" style="display:none; margin-top:14px;">
       <label for="med-strength">Select strength &amp; form</label>
       <select id="med-strength"></select>
-      <div class="row" style="margin-top:10px;">
+      <div class="rx-row" style="margin-top:10px;">
         <div>
           <label for="med-frequency">Frequency</label>
           <select id="med-frequency">
@@ -539,7 +539,7 @@ const ZIP_BASE = 'https://api.zippopotam.us/us';
 // To bump the version: push a new git tag and update VERSION below; jsDelivr
 // serves immutable content per tag so old GHL embeds keep working until updated.
 // Override for local dev by setting window.ZIP_DATASET_URL before this script runs.
-const ZIP_DATASET_VERSION = 'v1.0.4';
+const ZIP_DATASET_VERSION = 'v1.0.5';
 const ZIP_DATASET_URL = (() => {
   if (typeof window !== 'undefined' && window.ZIP_DATASET_URL) return window.ZIP_DATASET_URL;
   // Auto-detect localhost for dev convenience — serve the local dist/ file.
