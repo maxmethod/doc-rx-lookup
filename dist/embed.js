@@ -33,8 +33,20 @@
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
     --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
     --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }#rx-lookup-widget#rx-lookup-widget * { box-sizing: border-box; }#rx-lookup-widget#rx-lookup-widget .rx-container { max-width: 780px; margin: 0 auto; }#rx-lookup-widget#rx-lookup-widget h1 {
+  }#rx-lookup-widget#rx-lookup-widget * { box-sizing: border-box; }#rx-lookup-widget#rx-lookup-widget /* Base typography applied inside the widget container itself — matters
+     when embedded in a host (GHL survey mobile template) whose own body
+     CSS may set aggressive line-heights or fonts that would otherwise
+     collapse/collide the widget text. */
+  .rx-container {
+    max-width: 780px;
+    margin: 0 auto;
+    font-family: var(--font);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+  }#rx-lookup-widget#rx-lookup-widget h1 {
     font-size: 22px;
+    line-height: 1.3;
     margin: 0 0 4px;
     font-weight: 600;
   }#rx-lookup-widget#rx-lookup-widget .subtitle {
@@ -172,9 +184,11 @@
     margin: 0 0 10px;
     font-size: 14px;
     font-weight: 600;
-  }#rx-lookup-widget#rx-lookup-widget .field-group {
+  }#rx-lookup-widget#rx-lookup-widget /* Responsive: two columns on wider viewports, #rx-lookup-widget#rx-lookup-widget collapses to one column
+     automatically when the container is under ~380px (typical phone). */
+  .field-group {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 10px;
     margin-bottom: 10px;
   }#rx-lookup-widget#rx-lookup-widget .field-group.single { grid-template-columns: 1fr; }#rx-lookup-widget#rx-lookup-widget .actions-right {
@@ -189,11 +203,15 @@
     transform: translateY(-50%);
     font-size: 12px;
     color: var(--text-muted);
-  }#rx-lookup-widget#rx-lookup-widget .zip-radius-row {
-    display: grid;
-    grid-template-columns: 140px 140px 1fr;
+  }#rx-lookup-widget#rx-lookup-widget /* Mobile-friendly: ZIP and Radius side-by-side on wide viewports, #rx-lookup-widget#rx-lookup-widget stacked vertically when the container is under ~280px wide. */
+  .zip-radius-row {
+    display: flex;
+    flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 10px;
+  }#rx-lookup-widget#rx-lookup-widget .zip-radius-row > div {
+    flex: 1 1 120px;
+    min-width: 120px;
   }#rx-lookup-widget#rx-lookup-widget .help-text {
     font-size: 12px;
     color: var(--text-muted);
@@ -422,7 +440,7 @@ const ZIP_BASE = 'https://api.zippopotam.us/us';
 // To bump the version: push a new git tag and update VERSION below; jsDelivr
 // serves immutable content per tag so old GHL embeds keep working until updated.
 // Override for local dev by setting window.ZIP_DATASET_URL before this script runs.
-const ZIP_DATASET_VERSION = 'v1.0.8';
+const ZIP_DATASET_VERSION = 'v1.0.9';
 const ZIP_DATASET_URL = (() => {
   if (typeof window !== 'undefined' && window.ZIP_DATASET_URL) return window.ZIP_DATASET_URL;
   // Auto-detect localhost for dev convenience — serve the local dist/ file.
@@ -1242,16 +1260,29 @@ function applyPrimaryColor() {
     if (formBtn && isValidColor(formBtn.style.backgroundColor)) {
       color = formBtn.style.backgroundColor;
     }
-    // Survey-style: footer buttons use text color, not background
+    // Survey-style: look at footer Next button. Prefer background-color
+    // when the button is filled (user styled it with brand-colored bg),
+    // else fall back to text color (text-only button with brand-colored
+    // text, which is GHL's default survey button look).
     if (!color) {
       const surveyBtn = document.querySelector(
-        '.ghl-footer-next, .ghl-footer-preview, .ghl-footer .ghl-btn'
+        '.ghl-footer-next, .ghl-footer-previous, .ghl-footer-preview, .ghl-footer .ghl-btn'
       );
       if (surveyBtn) {
-        const c = getComputedStyle(surveyBtn).color;
-        // Skip default blacks / greys — not a real brand override
-        const skip = ['rgb(0, 0, 0)', 'rgba(0, 0, 0, 0)', 'rgb(96, 113, 121)'];
-        if (isValidColor(c) && !skip.includes(c)) color = c;
+        const s = getComputedStyle(surveyBtn);
+        const transparent = ['rgba(0, 0, 0, 0)', 'transparent', ''];
+        // Values that are "not a real brand color" — defaults, text colors
+        const skipColors = [
+          'rgb(0, 0, 0)', 'rgba(0, 0, 0, 0)', 'rgb(96, 113, 121)',
+          'rgb(255, 255, 255)', 'rgba(255, 255, 255, 1)'
+        ];
+        const bg = s.backgroundColor;
+        const fg = s.color;
+        if (bg && !transparent.includes(bg) && !skipColors.includes(bg)) {
+          color = bg;
+        } else if (fg && !skipColors.includes(fg) && isValidColor(fg)) {
+          color = fg;
+        }
       }
     }
   }
