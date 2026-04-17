@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medications & Providers Lookup</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f7f8fa;
+    --border: #e3e6eb;
+    --border-strong: #c9cfd8;
+    --text: #1a2332;
+    --text-muted: #5a6578;
+    --accent: #1e4d8c;
+    --accent-hover: #163a6c;
+    --danger: #c94545;
+    --danger-hover: #a83838;
+    --success: #2d7a4f;
+    --warning-bg: #fff8e6;
+    --warning-border: #e8c96b;
+    --radius: 6px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    color: var(--text);
+    background: var(--bg);
+    margin: 0;
+    padding: 24px;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .container { max-width: 780px; margin: 0 auto; }
+
+  h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+
+  .subtitle {
+    color: var(--text-muted);
+    margin-bottom: 28px;
+    font-size: 14px;
+  }
+
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .section-count {
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  input[type="text"],
+  input[type="number"],
+  select {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: var(--font);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(30,77,140,0.12);
+  }
+
+  .search-wrap {
+    position: relative;
+  }
+
+  .search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    max-height: 360px;
+    overflow-y: auto;
+    z-index: 20;
+    display: none;
+  }
+
+  .search-results.open { display: block; }
+
+  .result-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+
+  .result-item:last-child { border-bottom: none; }
+  .result-item:hover, .result-item.active { background: #eef3fa; }
+
+  .result-item .name { font-weight: 500; }
+  .result-item .meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .result-empty {
+    padding: 14px 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .result-empty a {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .row { display: flex; gap: 10px; align-items: end; }
+  .row > * { flex: 1; }
+
+  button {
+    font-family: var(--font);
+    font-size: 14px;
+    padding: 9px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  button:hover { background: var(--surface); }
+
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+  button.danger-text {
+    background: transparent;
+    border: none;
+    color: var(--danger);
+    padding: 4px 8px;
+    font-size: 13px;
+  }
+  button.danger-text:hover { color: var(--danger-hover); background: transparent; }
+
+  .items-list {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .item-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .item-card.manual {
+    background: var(--warning-bg);
+    border-color: var(--warning-border);
+  }
+
+  .item-card-main { flex: 1; min-width: 0; }
+  .item-card-name { font-weight: 500; font-size: 14px; }
+  .item-card-meta { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .item-card-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: #e3a23a;
+    color: #fff;
+    margin-left: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 600;
+  }
+
+  .limit-reached {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 8px 0;
+  }
+
+  .manual-entry-box {
+    background: #fff;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-top: 10px;
+  }
+
+  .manual-entry-box h4 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .field-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .field-group.single { grid-template-columns: 1fr; }
+
+  .actions-right {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .submit-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .debug-output {
+    margin-top: 20px;
+    background: #0f1419;
+    color: #a8b9cc;
+    padding: 14px;
+    border-radius: var(--radius);
+    font-family: "SF Mono", Monaco, Consolas, monospace;
+    font-size: 12px;
+    max-height: 360px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    display: none;
+  }
+
+  .debug-output.visible { display: block; }
+
+  .debug-toggle {
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    text-decoration: underline;
+    margin-top: 10px;
+    display: inline-block;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
+  .loading-inline {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .zip-radius-row {
+    display: grid;
+    grid-template-columns: 140px 140px 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .help-text {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .help-text a { color: var(--accent); cursor: pointer; }
+
+  .warn-banner {
+    background: #fff3cd;
+    border: 1px solid #ffd866;
+    color: #665300;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 10px;
+    display: none;
+  }
+  .warn-banner.visible { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Medications &amp; Providers</h1>
+  <p class="subtitle">Add any prescriptions you take and any doctors you want to keep in-network.</p>
+
+  <!-- ============ MEDICATIONS ============ -->
+  <div class="section" id="medications-section">
+    <div class="section-header">
+      <h2 class="section-title">Medications</h2>
+      <span class="section-count" id="med-count">0 of 10</span>
+    </div>
+
+    <div id="med-search-block">
+      <label for="med-search">Search for a medication</label>
+      <div class="search-wrap">
+        <input type="text" id="med-search" placeholder="Start typing a drug name, e.g. Lipitor" autocomplete="off">
+        <div class="loading-inline" id="med-loading" style="display:none;">Searching…</div>
+        <div class="search-results" id="med-results"></div>
+      </div>
+      <p class="help-text">Can't find your medication? <a id="med-manual-toggle">Enter it manually</a></p>
+    </div>
+
+    <div id="med-strength-block" style="display:none; margin-top:14px;">
+      <label for="med-strength">Select strength &amp; form</label>
+      <select id="med-strength"></select>
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="med-frequency">Frequency</label>
+          <select id="med-frequency">
+            <option value="Once daily">Once daily</option>
+            <option value="Twice daily">Twice daily</option>
+            <option value="Three times daily">Three times daily</option>
+            <option value="Four times daily">Four times daily</option>
+            <option value="Every other day">Every other day</option>
+            <option value="As needed">As needed</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions-right">
+        <button type="button" id="med-cancel">Cancel</button>
+        <button type="button" class="primary" id="med-add">Add medication</button>
+      </div>
+    </div>
+
+    <div id="med-manual-block" class="manual-entry-box" style="display:none;">
+      <h4>Manual medication entry</h4>
+      <div class="field-group single">
+        <div>
+          <label>Medication name</label>
+          <input type="text" id="med-manual-name" placeholder="e.g. Compounded hormone cream">
+        </div>
+      </div>
+      <div class="field-group">
+        <div>
+          <label>Strength (optional)</label>
+          <input type="text" id="med-manual-strength" placeholder="e.g. 10 mg">
+        </div>
+        <div>
+          <label>Form (optional)</label>
+          <input type="text" id="med-manual-form" placeholder="e.g. tablet, cream">
+        </div>
+      </div>
+      <div class="field-group single">
+        <div>
+          <label>Frequency</label>
+          <select id="med-manual-frequency">
+            <option value="Once daily">Once daily</option>
+            <option value="Twice daily">Twice daily</option>
+            <option value="Three times daily">Three times daily</option>
+            <option value="Four times daily">Four times daily</option>
+            <option value="Every other day">Every other day</option>
+            <option value="As needed">As needed</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions-right">
+        <button type="button" id="med-manual-cancel">Cancel</button>
+        <button type="button" class="primary" id="med-manual-add">Add medication</button>
+      </div>
+    </div>
+
+    <div class="items-list" id="med-list"></div>
+  </div>
+
+  <!-- ============ PROVIDERS ============ -->
+  <div class="section" id="providers-section">
+    <div class="section-header">
+      <h2 class="section-title">Doctors &amp; Providers</h2>
+      <span class="section-count" id="prov-count">0 of 5</span>
+    </div>
+
+    <div id="prov-search-block">
+      <div class="warn-banner" id="prov-zip-warn">Enter a valid 5-digit ZIP above before searching.</div>
+      <div class="zip-radius-row">
+        <div>
+          <label for="prov-zip">ZIP code</label>
+          <input type="text" id="prov-zip" maxlength="5" placeholder="76104">
+        </div>
+        <div>
+          <label for="prov-radius">Radius</label>
+          <select id="prov-radius">
+            <option value="10">10 miles</option>
+            <option value="25" selected>25 miles</option>
+            <option value="50">50 miles</option>
+            <option value="100">100 miles</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="prov-search">Search for a doctor</label>
+      <div class="search-wrap">
+        <input type="text" id="prov-search" placeholder="Doctor's last name, or first &amp; last" autocomplete="off">
+        <div class="loading-inline" id="prov-loading" style="display:none;">Searching…</div>
+        <div class="search-results" id="prov-results"></div>
+      </div>
+      <p class="help-text">Can't find your doctor? <a id="prov-manual-toggle">Enter them manually</a></p>
+    </div>
+
+    <div id="prov-type-block" style="display:none; margin-top:14px;">
+      <label>Provider type</label>
+      <select id="prov-type">
+        <option value="Primary Care">Primary Care</option>
+        <option value="Specialist">Specialist</option>
+        <option value="Other">Other</option>
+      </select>
+      <div class="actions-right">
+        <button type="button" id="prov-cancel">Cancel</button>
+        <button type="button" class="primary" id="prov-add">Add doctor</button>
+      </div>
+    </div>
+
+    <div id="prov-manual-block" class="manual-entry-box" style="display:none;">
+      <h4>Manual provider entry</h4>
+      <div class="field-group">
+        <div>
+          <label>First name</label>
+          <input type="text" id="prov-manual-first">
+        </div>
+        <div>
+          <label>Last name</label>
+          <input type="text" id="prov-manual-last">
+        </div>
+      </div>
+      <div class="field-group">
+        <div>
+          <label>Specialty (optional)</label>
+          <input type="text" id="prov-manual-specialty" placeholder="e.g. Cardiology">
+        </div>
+        <div>
+          <label>Provider type</label>
+          <select id="prov-manual-type">
+            <option value="Primary Care">Primary Care</option>
+            <option value="Specialist">Specialist</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-group">
+        <div>
+          <label>City (optional)</label>
+          <input type="text" id="prov-manual-city">
+        </div>
+        <div>
+          <label>State (optional)</label>
+          <input type="text" id="prov-manual-state" maxlength="2" placeholder="TX">
+        </div>
+      </div>
+      <div class="actions-right">
+        <button type="button" id="prov-manual-cancel">Cancel</button>
+        <button type="button" class="primary" id="prov-manual-add">Add doctor</button>
+      </div>
+    </div>
+
+    <div class="items-list" id="prov-list"></div>
+  </div>
+
+  <!-- ============ SUBMIT ============ -->
+  <div class="submit-section">
+    <input type="hidden" id="medications_json" name="medications_json">
+    <input type="hidden" id="medications_summary" name="medications_summary">
+    <input type="hidden" id="providers_json" name="providers_json">
+    <input type="hidden" id="providers_summary" name="providers_summary">
+
+    <button type="button" class="primary" id="preview-btn" style="width:100%; padding:12px;">Preview data that will submit</button>
+    <button type="button" class="debug-toggle" id="debug-toggle">Show/hide output preview</button>
+    <div class="debug-output" id="debug-output"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const MAX_MEDS = 10;
+const MAX_PROVIDERS = 5;
+const DEBOUNCE_MS = 300;
+const CT_BASE = 'https://clinicaltables.nlm.nih.gov/api/npi_idv/v3/search';
+const RX_BASE = 'https://rxnav.nlm.nih.gov/REST';
+const ZIP_BASE = 'https://api.zippopotam.us/us';
+
+// ZIP dataset — bundled at build time, served from jsDelivr CDN.
+// To bump the version: push a new git tag and update VERSION below; jsDelivr
+// serves immutable content per tag so old GHL embeds keep working until updated.
+// Override for local dev by setting window.ZIP_DATASET_URL before this script runs.
+const ZIP_DATASET_VERSION = 'v1.0.0';
+const ZIP_DATASET_URL = (() => {
+  if (typeof window !== 'undefined' && window.ZIP_DATASET_URL) return window.ZIP_DATASET_URL;
+  // Auto-detect localhost for dev convenience — serve the local dist/ file.
+  if (typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return './dist/us-zips.json';
+  }
+  return `https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@${ZIP_DATASET_VERSION}/dist/us-zips.json`;
+})();
+
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  medications: [],
+  providers: [],
+  medPending: null,
+  provPending: null,
+  zipCoordCache: new Map(),
+  zipDataset: null,         // { "12345": [lat, lon, "ST"], ... } once loaded
+  zipDatasetPromise: null   // in-flight fetch so concurrent calls share one request
+};
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+function haversineMiles(lat1, lon1, lat2, lon2) {
+  const R = 3958.8;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Load the bundled ZIP dataset from jsDelivr once per page load. The fetch is
+// started eagerly on page load but awaited lazily by the first ZIP lookup, so
+// it doesn't block initial render.
+async function loadZipDataset() {
+  if (state.zipDataset) return state.zipDataset;
+  if (state.zipDatasetPromise) return state.zipDatasetPromise;
+  state.zipDatasetPromise = (async () => {
+    try {
+      const res = await fetch(ZIP_DATASET_URL);
+      if (!res.ok) throw new Error(`Dataset fetch returned ${res.status}`);
+      state.zipDataset = await res.json();
+      return state.zipDataset;
+    } catch (e) {
+      console.warn('ZIP dataset load failed, falling back to zippopotam per-lookup:', e);
+      state.zipDataset = null;  // explicit null -> fallback mode
+      return null;
+    }
+  })();
+  return state.zipDatasetPromise;
+}
+
+async function getZipCoordinates(zip) {
+  if (!zip || !/^\d{5}$/.test(zip)) return null;
+  if (state.zipCoordCache.has(zip)) return state.zipCoordCache.get(zip);
+
+  const dataset = await loadZipDataset();
+  if (dataset) {
+    const row = dataset[zip];
+    if (row) {
+      const coords = { lat: row[0], lon: row[1], state: row[2], city: null };
+      state.zipCoordCache.set(zip, coords);
+      return coords;
+    }
+    // ZIP not in dataset (rare — new ZIPs, military APO/FPO). Fall through to zippopotam.
+  }
+
+  // Fallback: live API lookup. Only hit when dataset unavailable or ZIP missing.
+  try {
+    const res = await fetch(`${ZIP_BASE}/${zip}`);
+    if (!res.ok) { state.zipCoordCache.set(zip, null); return null; }
+    const data = await res.json();
+    const place = data.places && data.places[0];
+    if (!place) { state.zipCoordCache.set(zip, null); return null; }
+    const coords = {
+      lat: parseFloat(place.latitude),
+      lon: parseFloat(place.longitude),
+      state: place['state abbreviation'],
+      city: place['place name']
+    };
+    state.zipCoordCache.set(zip, coords);
+    return coords;
+  } catch (e) {
+    state.zipCoordCache.set(zip, null);
+    return null;
+  }
+}
+
+// Kick off dataset fetch as soon as the script runs, no await.
+loadZipDataset();
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function toTitleCase(s) {
+  if (!s) return '';
+  return s.toLowerCase().replace(/\b([a-z])/g, (_, c) => c.toUpperCase());
+}
+
+// ============================================================
+// MEDICATION SEARCH (RxNorm)
+// ============================================================
+async function searchMedications(query) {
+  if (!query || query.length < 2) return [];
+  try {
+    const url = `${RX_BASE}/approximateTerm.json?term=${encodeURIComponent(query)}&maxEntries=8`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const candidates = (data.approximateGroup && data.approximateGroup.candidate) || [];
+    const seen = new Map();
+    for (const c of candidates) {
+      if (!c.rxcui) continue;
+      if (!seen.has(c.rxcui)) seen.set(c.rxcui, c);
+    }
+    // approximateTerm returns concept identifiers but not names; fetch names in parallel
+    const withNames = await Promise.all(Array.from(seen.values()).slice(0, 6).map(async c => {
+      if (c.name) return c;
+      try {
+        const nameRes = await fetch(`${RX_BASE}/rxcui/${c.rxcui}/property.json?propName=RxNorm%20Name`);
+        const nameData = await nameRes.json();
+        const props = nameData.propConceptGroup && nameData.propConceptGroup.propConcept;
+        return { ...c, name: (props && props[0] && props[0].propValue) || `RxCUI ${c.rxcui}` };
+      } catch { return { ...c, name: `RxCUI ${c.rxcui}` }; }
+    }));
+    return withNames;
+  } catch (e) {
+    console.error('RxNorm search failed:', e);
+    return [];
+  }
+}
+
+async function getDrugDetails(rxcui) {
+  try {
+    const url = `${RX_BASE}/rxcui/${rxcui}/allrelated.json`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const groups = (data.allRelatedGroup && data.allRelatedGroup.conceptGroup) || [];
+    const drugForms = [];
+    const brands = new Set();
+    for (const g of groups) {
+      if ((g.tty === 'SCD' || g.tty === 'SBD') && g.conceptProperties) {
+        for (const p of g.conceptProperties) {
+          drugForms.push({ rxcui: p.rxcui, name: p.name, type: g.tty });
+        }
+      }
+      if (g.tty === 'BN' && g.conceptProperties) {
+        for (const p of g.conceptProperties) brands.add(p.name);
+      }
+    }
+    // Dedupe by display name, keep SCD over SBD when names differ only in brand prefix
+    const uniq = new Map();
+    for (const f of drugForms) {
+      const key = f.name.toLowerCase().replace(/^\[brand\]/, '').trim();
+      if (!uniq.has(key)) uniq.set(key, f);
+    }
+    return {
+      strengthOptions: Array.from(uniq.values()),
+      brandNames: Array.from(brands)
+    };
+  } catch (e) {
+    console.error('RxNorm details failed:', e);
+    return { strengthOptions: [], brandNames: [] };
+  }
+}
+
+async function getNdcForRxcui(rxcui) {
+  try {
+    const url = `${RX_BASE}/rxcui/${rxcui}/ndcs.json`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const ndcs = (data.ndcGroup && data.ndcGroup.ndcList && data.ndcGroup.ndcList.ndc) || [];
+    return ndcs[0] || null;
+  } catch (e) { return null; }
+}
+
+function parseDrugName(name) {
+  const strengthMatch = name.match(/(\d+(?:\.\d+)?)\s*(MG|MCG|ML|G|%|UNIT)/i);
+  const strength = strengthMatch ? `${strengthMatch[1]} ${strengthMatch[2].toLowerCase()}` : null;
+  const formPatterns = ['Tablet', 'Capsule', 'Injection', 'Solution', 'Suspension',
+                        'Cream', 'Ointment', 'Patch', 'Inhaler', 'Syrup', 'Drops',
+                        'Suppository', 'Gel', 'Spray'];
+  let dosageForm = null;
+  for (const p of formPatterns) {
+    if (name.toLowerCase().includes(p.toLowerCase())) { dosageForm = p.toLowerCase(); break; }
+  }
+  return { strength, dosageForm };
+}
+
+// ============================================================
+// MEDICATION UI
+// ============================================================
+const medSearchInput = document.getElementById('med-search');
+const medResults = document.getElementById('med-results');
+const medLoading = document.getElementById('med-loading');
+const medStrengthBlock = document.getElementById('med-strength-block');
+const medStrengthSelect = document.getElementById('med-strength');
+const medManualBlock = document.getElementById('med-manual-block');
+const medSearchBlock = document.getElementById('med-search-block');
+
+const runMedSearch = debounce(async (q) => {
+  if (!q || q.length < 2) {
+    medResults.classList.remove('open');
+    medLoading.style.display = 'none';
+    return;
+  }
+  medLoading.style.display = 'block';
+  const results = await searchMedications(q);
+  medLoading.style.display = 'none';
+
+  if (results.length === 0) {
+    medResults.innerHTML = '<div class="result-empty">No matches found. <a id="med-no-match-manual">Enter manually</a></div>';
+    medResults.classList.add('open');
+    document.getElementById('med-no-match-manual').onclick = () => {
+      medResults.classList.remove('open');
+      showMedManualEntry();
+    };
+    return;
+  }
+
+  medResults.innerHTML = results.map(r => `
+    <div class="result-item" data-rxcui="${escapeHtml(r.rxcui)}" data-name="${escapeHtml(r.name || '')}">
+      <div class="name">${escapeHtml(r.name || 'Unknown')}</div>
+      <div class="meta">RxCUI: ${escapeHtml(r.rxcui)}</div>
+    </div>
+  `).join('');
+  medResults.classList.add('open');
+
+  medResults.querySelectorAll('.result-item').forEach(el => {
+    el.onclick = () => selectMedication(el.dataset.rxcui, el.dataset.name);
+  });
+}, DEBOUNCE_MS);
+
+medSearchInput.addEventListener('input', (e) => runMedSearch(e.target.value.trim()));
+
+document.addEventListener('click', (e) => {
+  if (!medSearchInput.contains(e.target) && !medResults.contains(e.target)) {
+    medResults.classList.remove('open');
+  }
+});
+
+async function selectMedication(rxcui, name) {
+  medResults.classList.remove('open');
+  medSearchInput.value = name;
+  medLoading.style.display = 'block';
+
+  const details = await getDrugDetails(rxcui);
+  medLoading.style.display = 'none';
+
+  if (details.strengthOptions.length === 0) {
+    state.medPending = {
+      rxcui, name,
+      brand_name: details.brandNames[0] || null,
+      strengthOptions: [{ rxcui, name, type: 'BASE' }]
+    };
+  } else {
+    state.medPending = {
+      rxcui, name,
+      brand_name: details.brandNames[0] || null,
+      strengthOptions: details.strengthOptions
+    };
+  }
+
+  medStrengthSelect.innerHTML = state.medPending.strengthOptions
+    .map((s, i) => `<option value="${i}">${escapeHtml(s.name)}</option>`)
+    .join('');
+
+  medStrengthBlock.style.display = 'block';
+  medSearchBlock.style.display = 'none';
+}
+
+document.getElementById('med-cancel').onclick = () => resetMedSearch();
+
+document.getElementById('med-add').onclick = async () => {
+  if (!state.medPending) return;
+  const idx = parseInt(medStrengthSelect.value, 10);
+  const selected = state.medPending.strengthOptions[idx];
+  const parsed = parseDrugName(selected.name);
+  const frequency = document.getElementById('med-frequency').value;
+
+  const ndc = await getNdcForRxcui(selected.rxcui);
+
+  const isBranded = selected.type === 'SBD';
+  const entry = {
+    id: `med_${Date.now()}`,
+    name: isBranded ? state.medPending.name : selected.name.split(/\s+\d/)[0].trim(),
+    brand_name: isBranded ? state.medPending.name : (state.medPending.brand_name || null),
+    strength: parsed.strength,
+    dosage_form: parsed.dosageForm,
+    frequency,
+    rxcui: selected.rxcui,
+    ndc,
+    source: 'rxnorm',
+    display_name: selected.name
+  };
+
+  state.medications.push(entry);
+  renderMedications();
+  resetMedSearch();
+};
+
+function resetMedSearch() {
+  state.medPending = null;
+  medSearchInput.value = '';
+  medStrengthBlock.style.display = 'none';
+  medSearchBlock.style.display = 'block';
+  medManualBlock.style.display = 'none';
+}
+
+function showMedManualEntry() {
+  medSearchBlock.style.display = 'none';
+  medStrengthBlock.style.display = 'none';
+  medManualBlock.style.display = 'block';
+}
+
+document.getElementById('med-manual-toggle').onclick = (e) => { e.preventDefault(); showMedManualEntry(); };
+document.getElementById('med-manual-cancel').onclick = resetMedSearch;
+
+document.getElementById('med-manual-add').onclick = () => {
+  const name = document.getElementById('med-manual-name').value.trim();
+  if (!name) { alert('Medication name is required.'); return; }
+  const entry = {
+    id: `med_${Date.now()}`,
+    name,
+    brand_name: null,
+    strength: document.getElementById('med-manual-strength').value.trim() || null,
+    dosage_form: document.getElementById('med-manual-form').value.trim() || null,
+    frequency: document.getElementById('med-manual-frequency').value,
+    rxcui: null,
+    ndc: null,
+    source: 'manual',
+    display_name: name
+  };
+  state.medications.push(entry);
+  ['med-manual-name','med-manual-strength','med-manual-form'].forEach(id => document.getElementById(id).value = '');
+  renderMedications();
+  resetMedSearch();
+};
+
+function renderMedications() {
+  const list = document.getElementById('med-list');
+  const count = state.medications.length;
+  document.getElementById('med-count').textContent = `${count} of ${MAX_MEDS}`;
+
+  list.innerHTML = state.medications.map(m => {
+    const parts = [];
+    if (m.brand_name && m.brand_name.toLowerCase() !== m.name.toLowerCase()) {
+      parts.push(`${escapeHtml(m.name)} (${escapeHtml(m.brand_name)})`);
+    } else {
+      parts.push(escapeHtml(m.name));
+    }
+    if (m.strength) parts.push(escapeHtml(m.strength));
+    if (m.dosage_form) parts.push(escapeHtml(m.dosage_form));
+    const manualBadge = m.source === 'manual' ? '<span class="item-card-badge">Manual</span>' : '';
+    return `
+      <div class="item-card ${m.source === 'manual' ? 'manual' : ''}">
+        <div class="item-card-main">
+          <div class="item-card-name">${parts.join(' ')}${manualBadge}</div>
+          <div class="item-card-meta">${escapeHtml(m.frequency)}</div>
+        </div>
+        <button class="danger-text" data-remove-med="${m.id}">Remove</button>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-remove-med]').forEach(btn => {
+    btn.onclick = () => {
+      state.medications = state.medications.filter(m => m.id !== btn.dataset.removeMed);
+      renderMedications();
+    };
+  });
+
+  // Hide search if limit reached
+  if (count >= MAX_MEDS) {
+    medSearchBlock.style.display = 'none';
+    medStrengthBlock.style.display = 'none';
+    medManualBlock.style.display = 'none';
+  } else if (!state.medPending && medManualBlock.style.display === 'none') {
+    medSearchBlock.style.display = 'block';
+  }
+}
+
+// ============================================================
+// PROVIDER SEARCH (Clinical Tables NPI)
+// ============================================================
+// Response shape: [total, [npis], extras_obj, [[display_fields], ...]]
+// Default df: name.full, NPI, provider_type, addr_practice.full
+// We request ef=addr_practice,name.full,provider_type,licenses so we get the full
+// address object (including zip) and taxonomy classification for specialty.
+async function searchProviders(nameQuery, zip, radiusMiles) {
+  if (!nameQuery || nameQuery.length < 2) return [];
+  const center = await getZipCoordinates(zip);
+  if (!center) return { error: 'Could not look up that ZIP code.' };
+
+  // Clinical Tables: terms searches prefix-style across name fields by default.
+  // Splitting first/last and passing both words works well.
+  const params = new URLSearchParams({
+    terms: nameQuery,
+    count: '50',
+    q: `addr_practice.state:${center.state}`,
+    ef: 'addr_practice,name.full,provider_type,licenses,provider_credential_text'
+  });
+
+  let data;
+  try {
+    const res = await fetch(`${CT_BASE}?${params.toString()}`);
+    if (!res.ok) return { error: `Clinical Tables API returned ${res.status}` };
+    data = await res.json();
+  } catch (e) {
+    return { error: 'Network error contacting NLM Clinical Tables.' };
+  }
+
+  const [, npis, extras] = data;
+  if (!npis || npis.length === 0) return [];
+
+  const addrs = (extras && extras['addr_practice']) || [];
+  const names = (extras && extras['name.full']) || [];
+  const types = (extras && extras['provider_type']) || [];
+  const licenses = (extras && extras['licenses']) || [];
+  const credentials = (extras && extras['provider_credential_text']) || [];
+
+  // Build raw rows, then filter by radius
+  const raw = npis.map((npi, i) => {
+    const addr = addrs[i] || {};
+    const licArr = licenses[i] || [];
+    const primaryLic = licArr.find(l => l && l.is_primary_taxonomy === 'Y') || licArr[0] || null;
+    const specialty = (primaryLic && primaryLic.taxonomy && primaryLic.taxonomy.classification) || null;
+    // name.full is "LAST, FIRST" or "LAST, FIRST MIDDLE"
+    const rawName = names[i] || '';
+    const [lastRaw, firstRaw] = rawName.split(',').map(s => s.trim());
+    return {
+      npi,
+      last_name: toTitleCase(lastRaw || ''),
+      first_name: toTitleCase(firstRaw || ''),
+      credential: credentials[i] || null,
+      specialty,
+      provider_type_raw: types[i] || null,
+      address: {
+        street: addr.line1 || null,
+        street2: addr.line2 || null,
+        city: addr.city ? toTitleCase(addr.city) : null,
+        state: addr.state || null,
+        zip: addr.zip || null
+      }
+    };
+  });
+
+  // Parallel distance computation with capped concurrency via a simple batch loop
+  const withDist = [];
+  const BATCH = 10;
+  for (let i = 0; i < raw.length; i += BATCH) {
+    const batch = raw.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(async r => {
+      if (!r.address.zip) return null;
+      const coords = await getZipCoordinates(r.address.zip);
+      if (!coords) return null;
+      const dist = haversineMiles(center.lat, center.lon, coords.lat, coords.lon);
+      if (dist > radiusMiles) return null;
+      return { ...r, _distance: dist };
+    }));
+    withDist.push(...results.filter(Boolean));
+    if (withDist.length >= 12) break;  // short-circuit
+  }
+
+  withDist.sort((a, b) => a._distance - b._distance);
+  return withDist.slice(0, 12);
+}
+
+const provSearchInput = document.getElementById('prov-search');
+const provResults = document.getElementById('prov-results');
+const provLoading = document.getElementById('prov-loading');
+const provTypeBlock = document.getElementById('prov-type-block');
+const provManualBlock = document.getElementById('prov-manual-block');
+const provSearchBlock = document.getElementById('prov-search-block');
+const provZipWarn = document.getElementById('prov-zip-warn');
+
+const runProvSearch = debounce(async (q) => {
+  const zip = document.getElementById('prov-zip').value.trim();
+  const radius = parseInt(document.getElementById('prov-radius').value, 10);
+
+  if (!q || q.length < 2) {
+    provResults.classList.remove('open');
+    provLoading.style.display = 'none';
+    return;
+  }
+  if (!/^\d{5}$/.test(zip)) {
+    provZipWarn.classList.add('visible');
+    provResults.classList.remove('open');
+    return;
+  }
+  provZipWarn.classList.remove('visible');
+  provLoading.style.display = 'block';
+
+  const results = await searchProviders(q, zip, radius);
+  provLoading.style.display = 'none';
+
+  if (results && results.error) {
+    provResults.innerHTML = `<div class="result-empty">${escapeHtml(results.error)} <a id="prov-no-match-manual">Enter manually</a></div>`;
+    provResults.classList.add('open');
+    document.getElementById('prov-no-match-manual').onclick = () => {
+      provResults.classList.remove('open');
+      showProvManualEntry();
+    };
+    return;
+  }
+
+  if (!results || results.length === 0) {
+    provResults.innerHTML = `<div class="result-empty">No providers found within ${radius} miles. <a id="prov-no-match-manual">Enter manually</a></div>`;
+    provResults.classList.add('open');
+    document.getElementById('prov-no-match-manual').onclick = () => {
+      provResults.classList.remove('open');
+      showProvManualEntry();
+    };
+    return;
+  }
+
+  provResults.innerHTML = results.map((r, i) => {
+    const name = [r.first_name, r.last_name].filter(Boolean).join(' ');
+    const credential = r.credential ? `, ${r.credential}` : '';
+    const specialty = r.specialty || r.provider_type_raw || '';
+    const cityState = [r.address.city, r.address.state].filter(Boolean).join(', ');
+    return `
+      <div class="result-item" data-idx="${i}">
+        <div class="name">${escapeHtml(name)}${escapeHtml(credential)}</div>
+        <div class="meta">${escapeHtml(specialty)} · ${escapeHtml(cityState)} · ${r._distance.toFixed(1)} mi · NPI ${escapeHtml(r.npi)}</div>
+      </div>
+    `;
+  }).join('');
+  provResults.classList.add('open');
+
+  provResults.querySelectorAll('.result-item').forEach(el => {
+    const idx = parseInt(el.dataset.idx, 10);
+    el.onclick = () => selectProvider(results[idx]);
+  });
+}, DEBOUNCE_MS);
+
+provSearchInput.addEventListener('input', (e) => runProvSearch(e.target.value.trim()));
+document.getElementById('prov-zip').addEventListener('input', () => {
+  const zip = document.getElementById('prov-zip').value.trim();
+  if (/^\d{5}$/.test(zip)) provZipWarn.classList.remove('visible');
+});
+
+document.addEventListener('click', (e) => {
+  if (!provSearchInput.contains(e.target) && !provResults.contains(e.target)) {
+    provResults.classList.remove('open');
+  }
+});
+
+function selectProvider(ctResult) {
+  provResults.classList.remove('open');
+  provSearchInput.value = [ctResult.first_name, ctResult.last_name].filter(Boolean).join(' ');
+  state.provPending = ctResult;
+
+  // Smart default for provider type based on specialty text
+  const spec = (ctResult.specialty || '').toLowerCase();
+  const primaryKeywords = ['family medicine', 'internal medicine', 'general practice', 'pediatrics', 'primary care'];
+  const select = document.getElementById('prov-type');
+  if (primaryKeywords.some(k => spec.includes(k))) {
+    select.value = 'Primary Care';
+  } else {
+    select.value = 'Specialist';
+  }
+
+  provTypeBlock.style.display = 'block';
+  provSearchBlock.style.display = 'none';
+}
+
+document.getElementById('prov-cancel').onclick = resetProvSearch;
+
+document.getElementById('prov-add').onclick = () => {
+  if (!state.provPending) return;
+  const r = state.provPending;
+  const fullName = [r.first_name, r.last_name].filter(Boolean).join(' ');
+  const displayName = r.credential ? `${fullName}, ${r.credential}` : fullName;
+
+  const entry = {
+    id: `prov_${Date.now()}`,
+    full_name: displayName,
+    first_name: r.first_name || null,
+    last_name: r.last_name || null,
+    npi: r.npi,
+    specialty: r.specialty || r.provider_type_raw || null,
+    provider_type: document.getElementById('prov-type').value,
+    address: {
+      street: r.address.street,
+      street2: r.address.street2,
+      city: r.address.city,
+      state: r.address.state,
+      zip: r.address.zip
+    },
+    source: 'clinicaltables'
+  };
+  state.providers.push(entry);
+  renderProviders();
+  resetProvSearch();
+};
+
+function resetProvSearch() {
+  state.provPending = null;
+  provSearchInput.value = '';
+  provTypeBlock.style.display = 'none';
+  provSearchBlock.style.display = 'block';
+  provManualBlock.style.display = 'none';
+}
+
+function showProvManualEntry() {
+  provSearchBlock.style.display = 'none';
+  provTypeBlock.style.display = 'none';
+  provManualBlock.style.display = 'block';
+}
+
+document.getElementById('prov-manual-toggle').onclick = (e) => { e.preventDefault(); showProvManualEntry(); };
+document.getElementById('prov-manual-cancel').onclick = resetProvSearch;
+
+document.getElementById('prov-manual-add').onclick = () => {
+  const first = document.getElementById('prov-manual-first').value.trim();
+  const last = document.getElementById('prov-manual-last').value.trim();
+  if (!first || !last) { alert('First and last name are required.'); return; }
+  const entry = {
+    id: `prov_${Date.now()}`,
+    full_name: `${first} ${last}`,
+    first_name: first,
+    last_name: last,
+    npi: null,
+    specialty: document.getElementById('prov-manual-specialty').value.trim() || null,
+    provider_type: document.getElementById('prov-manual-type').value,
+    address: {
+      street: null, street2: null,
+      city: document.getElementById('prov-manual-city').value.trim() || null,
+      state: document.getElementById('prov-manual-state').value.trim().toUpperCase() || null,
+      zip: null
+    },
+    source: 'manual'
+  };
+  state.providers.push(entry);
+  ['prov-manual-first','prov-manual-last','prov-manual-specialty','prov-manual-city','prov-manual-state']
+    .forEach(id => document.getElementById(id).value = '');
+  renderProviders();
+  resetProvSearch();
+};
+
+function renderProviders() {
+  const list = document.getElementById('prov-list');
+  const count = state.providers.length;
+  document.getElementById('prov-count').textContent = `${count} of ${MAX_PROVIDERS}`;
+
+  list.innerHTML = state.providers.map(p => {
+    const spec = p.specialty ? `${escapeHtml(p.specialty)} (${escapeHtml(p.provider_type)})` : escapeHtml(p.provider_type);
+    const cityState = [p.address.city, p.address.state].filter(Boolean).join(', ');
+    const manualBadge = p.source === 'manual' ? '<span class="item-card-badge">Manual</span>' : '';
+    return `
+      <div class="item-card ${p.source === 'manual' ? 'manual' : ''}">
+        <div class="item-card-main">
+          <div class="item-card-name">${escapeHtml(p.full_name)}${manualBadge}</div>
+          <div class="item-card-meta">${spec}${cityState ? ' · ' + escapeHtml(cityState) : ''}</div>
+        </div>
+        <button class="danger-text" data-remove-prov="${p.id}">Remove</button>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-remove-prov]').forEach(btn => {
+    btn.onclick = () => {
+      state.providers = state.providers.filter(p => p.id !== btn.dataset.removeProv);
+      renderProviders();
+    };
+  });
+
+  if (count >= MAX_PROVIDERS) {
+    provSearchBlock.style.display = 'none';
+    provTypeBlock.style.display = 'none';
+    provManualBlock.style.display = 'none';
+  } else if (!state.provPending && provManualBlock.style.display === 'none') {
+    provSearchBlock.style.display = 'block';
+  }
+}
+
+// ============================================================
+// JSON + SUMMARY BUILDERS
+// ============================================================
+function buildMedicationsJson() {
+  return JSON.stringify({
+    version: '1.0',
+    count: state.medications.length,
+    items: state.medications.map(m => ({
+      id: m.id, name: m.name, brand_name: m.brand_name,
+      strength: m.strength, dosage_form: m.dosage_form, frequency: m.frequency,
+      rxcui: m.rxcui, ndc: m.ndc, source: m.source
+    }))
+  });
+}
+
+function buildMedicationsSummary() {
+  if (state.medications.length === 0) return '';
+  const lines = [`MEDICATIONS (${state.medications.length})`, ''];
+  for (const m of state.medications) {
+    const parts = [];
+    if (m.brand_name && m.brand_name.toLowerCase() !== m.name.toLowerCase()) {
+      parts.push(`${m.name} (${m.brand_name})`);
+    } else {
+      parts.push(m.name);
+    }
+    if (m.strength) parts.push(m.strength);
+    if (m.dosage_form) parts.push(m.dosage_form);
+    let line = `• ${parts.join(' ')} — ${m.frequency}`;
+    if (m.source === 'manual') line += ' [manually entered]';
+    lines.push(line);
+  }
+  return lines.join('\n');
+}
+
+function buildProvidersJson() {
+  return JSON.stringify({
+    version: '1.0',
+    count: state.providers.length,
+    items: state.providers.map(p => ({
+      id: p.id, full_name: p.full_name,
+      first_name: p.first_name, last_name: p.last_name,
+      npi: p.npi, specialty: p.specialty, provider_type: p.provider_type,
+      address: p.address, source: p.source
+    }))
+  });
+}
+
+function buildProvidersSummary() {
+  if (state.providers.length === 0) return '';
+  const lines = [`PROVIDERS (${state.providers.length})`, ''];
+  for (const p of state.providers) {
+    const spec = p.specialty ? `${p.specialty} (${p.provider_type})` : p.provider_type;
+    lines.push(`• ${p.full_name} — ${spec}`);
+    const addrParts = [p.address.street, p.address.city, p.address.state, p.address.zip].filter(Boolean);
+    if (addrParts.length > 0) lines.push(`  ${addrParts.join(', ')}`);
+    if (p.source === 'manual') lines.push('  [manually entered]');
+    lines.push('');
+  }
+  return lines.join('\n').trim();
+}
+
+function syncHiddenFields() {
+  document.getElementById('medications_json').value = buildMedicationsJson();
+  document.getElementById('medications_summary').value = buildMedicationsSummary();
+  document.getElementById('providers_json').value = buildProvidersJson();
+  document.getElementById('providers_summary').value = buildProvidersSummary();
+}
+
+document.getElementById('preview-btn').onclick = () => {
+  syncHiddenFields();
+  const out = document.getElementById('debug-output');
+  out.textContent = [
+    '===== medications_json =====',
+    buildMedicationsJson(),
+    '',
+    '===== medications_summary =====',
+    buildMedicationsSummary(),
+    '',
+    '===== providers_json =====',
+    buildProvidersJson(),
+    '',
+    '===== providers_summary =====',
+    buildProvidersSummary()
+  ].join('\n');
+  out.classList.add('visible');
+};
+
+document.getElementById('debug-toggle').onclick = () => {
+  document.getElementById('debug-output').classList.toggle('visible');
+};
+
+renderMedications();
+renderProviders();
+</script>
+</body>
+</html>
