@@ -422,7 +422,7 @@ const ZIP_BASE = 'https://api.zippopotam.us/us';
 // To bump the version: push a new git tag and update VERSION below; jsDelivr
 // serves immutable content per tag so old GHL embeds keep working until updated.
 // Override for local dev by setting window.ZIP_DATASET_URL before this script runs.
-const ZIP_DATASET_VERSION = 'v1.0.7';
+const ZIP_DATASET_VERSION = 'v1.0.8';
 const ZIP_DATASET_URL = (() => {
   if (typeof window !== 'undefined' && window.ZIP_DATASET_URL) return window.ZIP_DATASET_URL;
   // Auto-detect localhost for dev convenience — serve the local dist/ file.
@@ -1204,35 +1204,65 @@ function syncHiddenFields() {
 // PRIMARY COLOR INHERITANCE
 // ============================================================
 // Resolution order (first match wins):
-//   1. window.RX_CONFIG.primaryColor  — explicit config override
-//   2. data-primary-color attribute on #rx-lookup-widget container
-//   3. Auto-detect: inline background-color of the host page's submit
-//      button (GHL renders brand color inline on button[type="submit"])
-//   4. Fallback to the widget's default blue
+//   1. window.RX_CONFIG.primaryColor — explicit config override
+//   2. data-primary-color on the #rx-lookup-widget container.
+//      Recommended value in GHL: the literal template string
+//      {{custom_values.brand_primary_color}} — GHL substitutes it
+//      server-side to the account's brand color. Works for BOTH
+//      forms and surveys, no DOM sniffing required.
+//   3. Auto-detect for GHL FORMS:  inline background-color of the
+//      submit button (GHL forms emit brand color as inline style)
+//   4. Auto-detect for GHL SURVEYS: computed color of the footer
+//      Next/Submit button — survey buttons are styled with a text
+//      color, not a background.
+//   5. Fallback to the widget's default blue
+function isValidColor(v) {
+  if (!v || typeof v !== 'string') return false;
+  const s = v.trim();
+  if (!s) return false;
+  // Ignore unresolved GHL template variables like "{{custom_values.x}}"
+  if (s.includes('{{') || s.includes('}}')) return false;
+  // Hex #rgb, #rrggbb, #rrggbbaa, or rgb()/rgba() — anything else we don't trust
+  return /^#[0-9a-f]{3,8}$/i.test(s) || /^rgba?\(/i.test(s);
+}
+
 function applyPrimaryColor() {
   const widget = document.getElementById('rx-lookup-widget');
   if (!widget) return;
 
   let color = null;
-  if (window.RX_CONFIG && window.RX_CONFIG.primaryColor) {
+
+  if (window.RX_CONFIG && isValidColor(window.RX_CONFIG.primaryColor)) {
     color = window.RX_CONFIG.primaryColor;
-  } else if (widget.dataset && widget.dataset.primaryColor) {
+  } else if (widget.dataset && isValidColor(widget.dataset.primaryColor)) {
     color = widget.dataset.primaryColor;
   } else {
-    const submitBtn = document.querySelector('button[type="submit"]');
-    if (submitBtn) {
-      const inline = submitBtn.style.backgroundColor;
-      if (inline) color = inline;
+    // Form-style: GHL forms put brand color inline on submit button background
+    const formBtn = document.querySelector('button[type="submit"]');
+    if (formBtn && isValidColor(formBtn.style.backgroundColor)) {
+      color = formBtn.style.backgroundColor;
+    }
+    // Survey-style: footer buttons use text color, not background
+    if (!color) {
+      const surveyBtn = document.querySelector(
+        '.ghl-footer-next, .ghl-footer-preview, .ghl-footer .ghl-btn'
+      );
+      if (surveyBtn) {
+        const c = getComputedStyle(surveyBtn).color;
+        // Skip default blacks / greys — not a real brand override
+        const skip = ['rgb(0, 0, 0)', 'rgba(0, 0, 0, 0)', 'rgb(96, 113, 121)'];
+        if (isValidColor(c) && !skip.includes(c)) color = c;
+      }
     }
   }
+
   if (!color) return;
 
-  // Normalize 8-digit hex (#RRGGBBAA) to 6-digit (GHL sometimes emits #155EEFFF)
+  // Normalize 8-digit hex (GHL emits #RRGGBBAA) to 6-digit
   const hex8 = color.match(/^#([0-9a-f]{8})$/i);
   if (hex8) color = '#' + hex8[1].substring(0, 6);
 
   widget.style.setProperty('--accent', color);
-  // Derive a darker hover shade (10% darker)
   widget.style.setProperty('--accent-hover', darken(color, 0.12));
 }
 
