@@ -262,40 +262,6 @@
     margin-top: 10px;
   }
 
-  .submit-section {
-    margin-top: 24px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
-  }
-
-  .debug-output {
-    margin-top: 20px;
-    background: #0f1419;
-    color: #a8b9cc;
-    padding: 14px;
-    border-radius: var(--radius);
-    font-family: "SF Mono", Monaco, Consolas, monospace;
-    font-size: 12px;
-    max-height: 360px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    display: none;
-  }
-
-  .debug-output.visible { display: block; }
-
-  .debug-toggle {
-    font-size: 12px;
-    color: var(--text-muted);
-    cursor: pointer;
-    text-decoration: underline;
-    margin-top: 10px;
-    display: inline-block;
-    background: none;
-    border: none;
-    padding: 0;
-  }
-
   .loading-inline {
     position: absolute;
     right: 12px;
@@ -511,17 +477,13 @@
     <div class="items-list" id="prov-list"></div>
   </div>
 
-  <!-- ============ SUBMIT ============ -->
-  <div class="submit-section">
-    <input type="hidden" id="medications_json" name="medications_json">
-    <input type="hidden" id="medications_summary" name="medications_summary">
-    <input type="hidden" id="providers_json" name="providers_json">
-    <input type="hidden" id="providers_summary" name="providers_summary">
-
-    <button type="button" class="primary" id="preview-btn" style="width:100%; padding:12px;">Preview data that will submit</button>
-    <button type="button" class="debug-toggle" id="debug-toggle">Show/hide output preview</button>
-    <div class="debug-output" id="debug-output"></div>
-  </div>
+  <!-- Fallback placeholders so the widget still syncs when used standalone
+       (outside a GHL form). When placed inside a GHL form, the widget
+       finds GHL's real data-q inputs in addition to these. -->
+  <input type="hidden" name="medications_json">
+  <input type="hidden" name="medications_summary">
+  <input type="hidden" name="providers_json">
+  <input type="hidden" name="providers_summary">
 </div>
 
 <script>
@@ -539,7 +501,7 @@ const ZIP_BASE = 'https://api.zippopotam.us/us';
 // To bump the version: push a new git tag and update VERSION below; jsDelivr
 // serves immutable content per tag so old GHL embeds keep working until updated.
 // Override for local dev by setting window.ZIP_DATASET_URL before this script runs.
-const ZIP_DATASET_VERSION = 'v1.0.6';
+const ZIP_DATASET_VERSION = 'v1.0.7';
 const ZIP_DATASET_URL = (() => {
   if (typeof window !== 'undefined' && window.ZIP_DATASET_URL) return window.ZIP_DATASET_URL;
   // Auto-detect localhost for dev convenience — serve the local dist/ file.
@@ -1317,29 +1279,62 @@ function syncHiddenFields() {
   setAll('providers_summary',   buildProvidersSummary());
 }
 
-document.getElementById('preview-btn').onclick = () => {
-  syncHiddenFields();
-  const out = document.getElementById('debug-output');
-  out.textContent = [
-    '===== medications_json =====',
-    buildMedicationsJson(),
-    '',
-    '===== medications_summary =====',
-    buildMedicationsSummary(),
-    '',
-    '===== providers_json =====',
-    buildProvidersJson(),
-    '',
-    '===== providers_summary =====',
-    buildProvidersSummary()
-  ].join('\n');
-  out.classList.add('visible');
-};
+// ============================================================
+// PRIMARY COLOR INHERITANCE
+// ============================================================
+// Resolution order (first match wins):
+//   1. window.RX_CONFIG.primaryColor  — explicit config override
+//   2. data-primary-color attribute on #rx-lookup-widget container
+//   3. Auto-detect: inline background-color of the host page's submit
+//      button (GHL renders brand color inline on button[type="submit"])
+//   4. Fallback to the widget's default blue
+function applyPrimaryColor() {
+  const widget = document.getElementById('rx-lookup-widget');
+  if (!widget) return;
 
-document.getElementById('debug-toggle').onclick = () => {
-  document.getElementById('debug-output').classList.toggle('visible');
-};
+  let color = null;
+  if (window.RX_CONFIG && window.RX_CONFIG.primaryColor) {
+    color = window.RX_CONFIG.primaryColor;
+  } else if (widget.dataset && widget.dataset.primaryColor) {
+    color = widget.dataset.primaryColor;
+  } else {
+    const submitBtn = document.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      const inline = submitBtn.style.backgroundColor;
+      if (inline) color = inline;
+    }
+  }
+  if (!color) return;
 
+  // Normalize 8-digit hex (#RRGGBBAA) to 6-digit (GHL sometimes emits #155EEFFF)
+  const hex8 = color.match(/^#([0-9a-f]{8})$/i);
+  if (hex8) color = '#' + hex8[1].substring(0, 6);
+
+  widget.style.setProperty('--accent', color);
+  // Derive a darker hover shade (10% darker)
+  widget.style.setProperty('--accent-hover', darken(color, 0.12));
+}
+
+function darken(color, amount) {
+  // Accepts #rgb, #rrggbb, rgb(...), rgba(...) — returns #rrggbb
+  let r, g, b;
+  const hex = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  const rgb = color.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+  if (hex) {
+    const h = hex[1].length === 3 ? hex[1].split('').map(c => c + c).join('') : hex[1];
+    r = parseInt(h.slice(0, 2), 16);
+    g = parseInt(h.slice(2, 4), 16);
+    b = parseInt(h.slice(4, 6), 16);
+  } else if (rgb) {
+    r = +rgb[1]; g = +rgb[2]; b = +rgb[3];
+  } else {
+    return color;
+  }
+  const d = v => Math.max(0, Math.round(v * (1 - amount))).toString(16).padStart(2, '0');
+  return '#' + d(r) + d(g) + d(b);
+}
+
+applyPrimaryColor();
 renderMedications();
 renderProviders();
 </script>
