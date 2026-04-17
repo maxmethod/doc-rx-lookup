@@ -539,7 +539,7 @@ const ZIP_BASE = 'https://api.zippopotam.us/us';
 // To bump the version: push a new git tag and update VERSION below; jsDelivr
 // serves immutable content per tag so old GHL embeds keep working until updated.
 // Override for local dev by setting window.ZIP_DATASET_URL before this script runs.
-const ZIP_DATASET_VERSION = 'v1.0.0';
+const ZIP_DATASET_VERSION = 'v1.0.1';
 const ZIP_DATASET_URL = (() => {
   if (typeof window !== 'undefined' && window.ZIP_DATASET_URL) return window.ZIP_DATASET_URL;
   // Auto-detect localhost for dev convenience — serve the local dist/ file.
@@ -933,6 +933,8 @@ function renderMedications() {
   } else if (!state.medPending && medManualBlock.style.display === 'none') {
     medSearchBlock.style.display = 'block';
   }
+
+  syncHiddenFields();  // keep GHL form values in sync on every state change
 }
 
 // ============================================================
@@ -1228,6 +1230,8 @@ function renderProviders() {
   } else if (!state.provPending && provManualBlock.style.display === 'none') {
     provSearchBlock.style.display = 'block';
   }
+
+  syncHiddenFields();  // keep GHL form values in sync on every state change
 }
 
 // ============================================================
@@ -1291,11 +1295,18 @@ function buildProvidersSummary() {
   return lines.join('\n').trim();
 }
 
+// Populate the four destination fields. We look up by [name="..."] so this
+// works against both our local placeholder <input>s AND GHL's inline form
+// (which renders hidden custom fields with name= matching the field key).
+// Both inputs get written if both exist, which is fine — GHL's takes submission.
 function syncHiddenFields() {
-  document.getElementById('medications_json').value = buildMedicationsJson();
-  document.getElementById('medications_summary').value = buildMedicationsSummary();
-  document.getElementById('providers_json').value = buildProvidersJson();
-  document.getElementById('providers_summary').value = buildProvidersSummary();
+  const setAll = (sel, value) => {
+    document.querySelectorAll(sel).forEach(el => { el.value = value; });
+  };
+  setAll('[name="medications_json"]',    buildMedicationsJson());
+  setAll('[name="medications_summary"]', buildMedicationsSummary());
+  setAll('[name="providers_json"]',      buildProvidersJson());
+  setAll('[name="providers_summary"]',   buildProvidersSummary());
 }
 
 document.getElementById('preview-btn').onclick = () => {
