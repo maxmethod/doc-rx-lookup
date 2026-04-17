@@ -8,9 +8,22 @@ Client-side prescription and provider lookup widget for Max Methodology quote fo
 
 | Path | Purpose |
 | --- | --- |
-| `rx-provider-lookup.html` | The embed. Self-contained HTML + inline CSS + inline JS. Copy-paste into a GHL funnel page, or load via a `<script src>` on jsDelivr once v1.1+ splits the JS out. |
+| `rx-provider-lookup.html` | Full standalone version (with HTML shell). Useful for local dev and testing outside GHL. |
+| `dist/embed.js` | **Production embed.** Self-bootstrapping single-file version — paste one `<script>` tag into a GHL Custom Code block and the widget injects itself. |
 | `dist/us-zips.json` | Bundled ZIP coordinate dataset, served via jsDelivr. ~1.2MB uncompressed, ~350KB gzipped. |
-| `scripts/build-zip-dataset.js` | Regenerates `dist/us-zips.json` from the GeoNames US postal-code export. Run this whenever GeoNames publishes an update. |
+| `scripts/build-embed.js` | Regenerates `dist/embed.js` from `rx-provider-lookup.html`. Run after any HTML change. |
+| `scripts/build-zip-dataset.js` | Regenerates `dist/us-zips.json` from the GeoNames US postal-code export. |
+
+## GHL embed snippet
+
+Paste into a Custom Code / Custom HTML block on the funnel page where you want the widget to appear:
+
+```html
+<div id="rx-lookup-widget"></div>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v1.0.2/dist/embed.js"></script>
+```
+
+On the same funnel page, place a GHL form containing the four custom fields as hidden inputs (`medications_json`, `medications_summary`, `providers_json`, `providers_summary`) and a submit button styled as "Continue". Configure the form's "On Submit" to redirect to the next funnel step. The widget will find those hidden inputs by their `name` attributes and keep them synced automatically as the user makes selections.
 
 ## Runtime architecture
 

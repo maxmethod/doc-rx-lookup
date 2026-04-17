@@ -1,11 +1,21 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Medications & Providers Lookup</title>
-<style>
-  :root {
+/**
+ * doc-rx-lookup embed bootstrap
+ * Generated from rx-provider-lookup.html
+ *
+ * Drop into a GHL funnel page with:
+ *   <div id="rx-lookup-widget"></div>
+ *   <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed.js"></script>
+ *
+ * Or omit the <div> and the script will append the widget to <body>.
+ */
+(function () {
+  if (window.__rxLookupEmbedLoaded) return;
+  window.__rxLookupEmbedLoaded = true;
+
+  // ---- styles ----
+  const style = document.createElement('style');
+  style.setAttribute('data-rx-lookup', 'styles');
+  style.textContent = `:root {
     --bg: #ffffff;
     --surface: #f7f8fa;
     --border: #e3e6eb;
@@ -330,11 +340,20 @@
     margin-bottom: 10px;
     display: none;
   }
-  .warn-banner.visible { display: block; }
-</style>
-</head>
-<body>
-<div class="container">
+  .warn-banner.visible { display: block; }`;
+  document.head.appendChild(style);
+
+  // ---- markup ----
+  // Find an explicit container or create one. The page may pre-place
+  // <div id="rx-lookup-widget"></div> where it wants the widget to appear.
+  let container = document.getElementById('rx-lookup-widget') ||
+                  document.querySelector('[data-rx-lookup-widget]');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'rx-lookup-widget';
+    document.body.appendChild(container);
+  }
+  container.innerHTML = `<div class="container">
   <h1>Medications &amp; Providers</h1>
   <p class="subtitle">Add any prescriptions you take and any doctors you want to keep in-network.</p>
 
@@ -522,9 +541,10 @@
     <button type="button" class="debug-toggle" id="debug-toggle">Show/hide output preview</button>
     <div class="debug-output" id="debug-output"></div>
   </div>
-</div>
+</div>`;
 
-<script>
+  // ---- widget logic ----
+  (function widgetMain() {
 // ============================================================
 // CONFIG
 // ============================================================
@@ -1334,6 +1354,5 @@ document.getElementById('debug-toggle').onclick = () => {
 
 renderMedications();
 renderProviders();
-</script>
-</body>
-</html>
+  })();
+})();
