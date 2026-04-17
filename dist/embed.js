@@ -33,39 +33,39 @@
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
     --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
     --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }#rx-lookup-widget * { box-sizing: border-box; }#rx-lookup-widget .container { max-width: 780px; margin: 0 auto; }#rx-lookup-widget h1 {
+  }#rx-lookup-widget#rx-lookup-widget * { box-sizing: border-box; }#rx-lookup-widget#rx-lookup-widget .container { max-width: 780px; margin: 0 auto; }#rx-lookup-widget#rx-lookup-widget h1 {
     font-size: 22px;
     margin: 0 0 4px;
     font-weight: 600;
-  }#rx-lookup-widget .subtitle {
+  }#rx-lookup-widget#rx-lookup-widget .subtitle {
     color: var(--text-muted);
     margin-bottom: 28px;
     font-size: 14px;
-  }#rx-lookup-widget .section {
+  }#rx-lookup-widget#rx-lookup-widget .section {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 20px;
     margin-bottom: 20px;
-  }#rx-lookup-widget .section-header {
+  }#rx-lookup-widget#rx-lookup-widget .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 14px;
-  }#rx-lookup-widget .section-title {
+  }#rx-lookup-widget#rx-lookup-widget .section-title {
     font-size: 16px;
     font-weight: 600;
     margin: 0;
-  }#rx-lookup-widget .section-count {
+  }#rx-lookup-widget#rx-lookup-widget .section-count {
     color: var(--text-muted);
     font-size: 13px;
-  }#rx-lookup-widget label {
+  }#rx-lookup-widget#rx-lookup-widget label {
     display: block;
     font-size: 13px;
     font-weight: 500;
     margin-bottom: 6px;
     color: var(--text);
-  }#rx-lookup-widget input[type="text"], #rx-lookup-widget input[type="number"], #rx-lookup-widget select {
+  }#rx-lookup-widget#rx-lookup-widget input[type="text"], #rx-lookup-widget#rx-lookup-widget input[type="number"], #rx-lookup-widget#rx-lookup-widget select {
     width: 100%;
     padding: 9px 12px;
     font-size: 14px;
@@ -75,13 +75,13 @@
     background: #fff;
     color: var(--text);
     transition: border-color 0.15s, box-shadow 0.15s;
-  }#rx-lookup-widget input:focus, #rx-lookup-widget select:focus {
+  }#rx-lookup-widget#rx-lookup-widget input:focus, #rx-lookup-widget#rx-lookup-widget select:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(30,77,140,0.12);
-  }#rx-lookup-widget .search-wrap {
+  }#rx-lookup-widget#rx-lookup-widget .search-wrap {
     position: relative;
-  }#rx-lookup-widget .search-results {
+  }#rx-lookup-widget#rx-lookup-widget .search-results {
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
@@ -94,21 +94,21 @@
     overflow-y: auto;
     z-index: 20;
     display: none;
-  }#rx-lookup-widget .search-results.open { display: block; }#rx-lookup-widget .result-item {
+  }#rx-lookup-widget#rx-lookup-widget .search-results.open { display: block; }#rx-lookup-widget#rx-lookup-widget .result-item {
     padding: 10px 12px;
     cursor: pointer;
     border-bottom: 1px solid var(--border);
     font-size: 14px;
-  }#rx-lookup-widget .result-item:last-child { border-bottom: none; }#rx-lookup-widget .result-item:hover, #rx-lookup-widget .result-item.active { background: #eef3fa; }#rx-lookup-widget .result-item .name { font-weight: 500; }#rx-lookup-widget .result-item .meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }#rx-lookup-widget .result-empty {
+  }#rx-lookup-widget#rx-lookup-widget .result-item:last-child { border-bottom: none; }#rx-lookup-widget#rx-lookup-widget .result-item:hover, #rx-lookup-widget#rx-lookup-widget .result-item.active { background: #eef3fa; }#rx-lookup-widget#rx-lookup-widget .result-item .name { font-weight: 500; }#rx-lookup-widget#rx-lookup-widget .result-item .meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }#rx-lookup-widget#rx-lookup-widget .result-empty {
     padding: 14px 12px;
     font-size: 13px;
     color: var(--text-muted);
     text-align: center;
-  }#rx-lookup-widget .result-empty a {
+  }#rx-lookup-widget#rx-lookup-widget .result-empty a {
     color: var(--accent);
     cursor: pointer;
     text-decoration: underline;
-  }#rx-lookup-widget .row { display: flex; gap: 10px; align-items: end; }#rx-lookup-widget .row > * { flex: 1; }#rx-lookup-widget button {
+  }#rx-lookup-widget#rx-lookup-widget .row { display: flex; gap: 10px; align-items: end; }#rx-lookup-widget#rx-lookup-widget .row > * { flex: 1; }#rx-lookup-widget#rx-lookup-widget button {
     font-family: var(--font);
     font-size: 14px;
     padding: 9px 16px;
@@ -119,22 +119,22 @@
     cursor: pointer;
     font-weight: 500;
     transition: background 0.15s, border-color 0.15s;
-  }#rx-lookup-widget button:hover { background: var(--surface); }#rx-lookup-widget button.primary {
+  }#rx-lookup-widget#rx-lookup-widget button:hover { background: var(--surface); }#rx-lookup-widget#rx-lookup-widget button.primary {
     background: var(--accent);
     border-color: var(--accent);
     color: #fff;
-  }#rx-lookup-widget button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }#rx-lookup-widget button.danger-text {
+  }#rx-lookup-widget#rx-lookup-widget button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }#rx-lookup-widget#rx-lookup-widget button.danger-text {
     background: transparent;
     border: none;
     color: var(--danger);
     padding: 4px 8px;
     font-size: 13px;
-  }#rx-lookup-widget button.danger-text:hover { color: var(--danger-hover); background: transparent; }#rx-lookup-widget .items-list {
+  }#rx-lookup-widget#rx-lookup-widget button.danger-text:hover { color: var(--danger-hover); background: transparent; }#rx-lookup-widget#rx-lookup-widget .items-list {
     margin-top: 16px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }#rx-lookup-widget .item-card {
+  }#rx-lookup-widget#rx-lookup-widget .item-card {
     background: #fff;
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -143,10 +143,10 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 12px;
-  }#rx-lookup-widget .item-card.manual {
+  }#rx-lookup-widget#rx-lookup-widget .item-card.manual {
     background: var(--warning-bg);
     border-color: var(--warning-border);
-  }#rx-lookup-widget .item-card-main { flex: 1; min-width: 0; }#rx-lookup-widget .item-card-name { font-weight: 500; font-size: 14px; }#rx-lookup-widget .item-card-meta { font-size: 13px; color: var(--text-muted); margin-top: 2px; }#rx-lookup-widget .item-card-badge {
+  }#rx-lookup-widget#rx-lookup-widget .item-card-main { flex: 1; min-width: 0; }#rx-lookup-widget#rx-lookup-widget .item-card-name { font-weight: 500; font-size: 14px; }#rx-lookup-widget#rx-lookup-widget .item-card-meta { font-size: 13px; color: var(--text-muted); margin-top: 2px; }#rx-lookup-widget#rx-lookup-widget .item-card-badge {
     display: inline-block;
     font-size: 11px;
     padding: 2px 6px;
@@ -157,36 +157,36 @@
     text-transform: uppercase;
     letter-spacing: 0.3px;
     font-weight: 600;
-  }#rx-lookup-widget .limit-reached {
+  }#rx-lookup-widget#rx-lookup-widget .limit-reached {
     font-size: 13px;
     color: var(--text-muted);
     font-style: italic;
     padding: 8px 0;
-  }#rx-lookup-widget .manual-entry-box {
+  }#rx-lookup-widget#rx-lookup-widget .manual-entry-box {
     background: #fff;
     border: 1px dashed var(--border-strong);
     border-radius: var(--radius);
     padding: 14px;
     margin-top: 10px;
-  }#rx-lookup-widget .manual-entry-box h4 {
+  }#rx-lookup-widget#rx-lookup-widget .manual-entry-box h4 {
     margin: 0 0 10px;
     font-size: 14px;
     font-weight: 600;
-  }#rx-lookup-widget .field-group {
+  }#rx-lookup-widget#rx-lookup-widget .field-group {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
     margin-bottom: 10px;
-  }#rx-lookup-widget .field-group.single { grid-template-columns: 1fr; }#rx-lookup-widget .actions-right {
+  }#rx-lookup-widget#rx-lookup-widget .field-group.single { grid-template-columns: 1fr; }#rx-lookup-widget#rx-lookup-widget .actions-right {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
     margin-top: 10px;
-  }#rx-lookup-widget .submit-section {
+  }#rx-lookup-widget#rx-lookup-widget .submit-section {
     margin-top: 24px;
     padding-top: 20px;
     border-top: 1px solid var(--border);
-  }#rx-lookup-widget .debug-output {
+  }#rx-lookup-widget#rx-lookup-widget .debug-output {
     margin-top: 20px;
     background: #0f1419;
     color: #a8b9cc;
@@ -198,7 +198,7 @@
     overflow-y: auto;
     white-space: pre-wrap;
     display: none;
-  }#rx-lookup-widget .debug-output.visible { display: block; }#rx-lookup-widget .debug-toggle {
+  }#rx-lookup-widget#rx-lookup-widget .debug-output.visible { display: block; }#rx-lookup-widget#rx-lookup-widget .debug-toggle {
     font-size: 12px;
     color: var(--text-muted);
     cursor: pointer;
@@ -208,23 +208,23 @@
     background: none;
     border: none;
     padding: 0;
-  }#rx-lookup-widget .loading-inline {
+  }#rx-lookup-widget#rx-lookup-widget .loading-inline {
     position: absolute;
     right: 12px;
     top: 50%;
     transform: translateY(-50%);
     font-size: 12px;
     color: var(--text-muted);
-  }#rx-lookup-widget .zip-radius-row {
+  }#rx-lookup-widget#rx-lookup-widget .zip-radius-row {
     display: grid;
     grid-template-columns: 140px 140px 1fr;
     gap: 10px;
     margin-bottom: 10px;
-  }#rx-lookup-widget .help-text {
+  }#rx-lookup-widget#rx-lookup-widget .help-text {
     font-size: 12px;
     color: var(--text-muted);
     margin-top: 4px;
-  }#rx-lookup-widget .help-text a { color: var(--accent); cursor: pointer; }#rx-lookup-widget .warn-banner {
+  }#rx-lookup-widget#rx-lookup-widget .help-text a { color: var(--accent); cursor: pointer; }#rx-lookup-widget#rx-lookup-widget .warn-banner {
     background: #fff3cd;
     border: 1px solid #ffd866;
     color: #665300;
@@ -233,7 +233,7 @@
     font-size: 13px;
     margin-bottom: 10px;
     display: none;
-  }#rx-lookup-widget .warn-banner.visible { display: block; }`;
+  }#rx-lookup-widget#rx-lookup-widget .warn-banner.visible { display: block; }`;
   document.head.appendChild(style);
 
   // ---- markup ----
@@ -452,7 +452,7 @@ const ZIP_BASE = 'https://api.zippopotam.us/us';
 // To bump the version: push a new git tag and update VERSION below; jsDelivr
 // serves immutable content per tag so old GHL embeds keep working until updated.
 // Override for local dev by setting window.ZIP_DATASET_URL before this script runs.
-const ZIP_DATASET_VERSION = 'v1.0.3';
+const ZIP_DATASET_VERSION = 'v1.0.4';
 const ZIP_DATASET_URL = (() => {
   if (typeof window !== 'undefined' && window.ZIP_DATASET_URL) return window.ZIP_DATASET_URL;
   // Auto-detect localhost for dev convenience — serve the local dist/ file.

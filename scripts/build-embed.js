@@ -19,11 +19,14 @@ if (!styleMatch) throw new Error('Could not find <style> block');
 const rawCss = styleMatch[1].trim();
 
 // Scope every selector to #rx-lookup-widget so the widget's CSS cannot leak
-// out and affect the host page (e.g., GHL form buttons, body styles, etc.).
-// Keeps :root custom-property declarations global (they're variable defs, only
-// read by elements that reference them, which only exist inside the widget).
-// Drops body {} entirely — the host page owns body styles.
+// out and affect the host page. We DOUBLE the scope id (#x#x) to bump
+// specificity above typical host-page form framework rules — this is the
+// cheapest way to win the cascade against e.g. GHL's .hl-form-input styles
+// without resorting to !important. Two ID selectors targeting the same
+// element is valid CSS and effectively doubles the specificity weight.
+// Keeps :root custom-property declarations global, drops body/html rules.
 function scopeCss(css, scope) {
+  const compound = `${scope}${scope}`;  // doubled-id specificity boost
   return css.replace(/([^{}]+)\{([^{}]*)\}/g, (match, selector, body) => {
     const sel = selector.trim();
     if (sel === ':root') return `${sel} {${body}}`;
@@ -32,7 +35,7 @@ function scopeCss(css, scope) {
       const trimmed = part.trim();
       if (!trimmed) return trimmed;
       if (trimmed.startsWith(scope)) return trimmed;
-      return `${scope} ${trimmed}`;
+      return `${compound} ${trimmed}`;
     }).join(', ');
     return `${scoped} {${body}}`;
   });
