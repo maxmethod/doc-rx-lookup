@@ -20,7 +20,7 @@ Paste into a Custom Code / Custom HTML block on the funnel page where you want t
 
 ```html
 <div id="rx-lookup-widget"></div>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v1.0.5/dist/embed.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v1.0.6/dist/embed.js"></script>
 ```
 
 On the same funnel page, place a GHL form containing the four custom fields as hidden inputs (`medications_json`, `medications_summary`, `providers_json`, `providers_summary`) and a submit button styled as "Continue". Configure the form's "On Submit" to redirect to the next funnel step. The widget will find those hidden inputs by their `name` attributes and keep them synced automatically as the user makes selections.

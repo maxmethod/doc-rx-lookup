@@ -452,7 +452,7 @@ const ZIP_BASE = 'https://api.zippopotam.us/us';
 // To bump the version: push a new git tag and update VERSION below; jsDelivr
 // serves immutable content per tag so old GHL embeds keep working until updated.
 // Override for local dev by setting window.ZIP_DATASET_URL before this script runs.
-const ZIP_DATASET_VERSION = 'v1.0.5';
+const ZIP_DATASET_VERSION = 'v1.0.6';
 const ZIP_DATASET_URL = (() => {
   if (typeof window !== 'undefined' && window.ZIP_DATASET_URL) return window.ZIP_DATASET_URL;
   // Auto-detect localhost for dev convenience — serve the local dist/ file.
@@ -1208,18 +1208,26 @@ function buildProvidersSummary() {
   return lines.join('\n').trim();
 }
 
-// Populate the four destination fields. We look up by [name="..."] so this
-// works against both our local placeholder <input>s AND GHL's inline form
-// (which renders hidden custom fields with name= matching the field key).
-// Both inputs get written if both exist, which is fine — GHL's takes submission.
+// Populate the four destination fields. GHL renders custom fields with a
+// random internal id/name like "S420DUgi77vEhk7B5Oq3" and stores the actual
+// field key in the data-q attribute. We match on BOTH name= (for our local
+// placeholder <input>s and most other hosts) AND data-q= (GHL's convention)
+// so a single build works everywhere. Dispatching an 'input' event after
+// setting the value lets GHL's form framework register the change for
+// validation / conditional-logic tracking.
 function syncHiddenFields() {
-  const setAll = (sel, value) => {
-    document.querySelectorAll(sel).forEach(el => { el.value = value; });
+  const setAll = (key, value) => {
+    const selector = `[name="${key}"], [data-q="${key}"]`;
+    document.querySelectorAll(selector).forEach(el => {
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
   };
-  setAll('[name="medications_json"]',    buildMedicationsJson());
-  setAll('[name="medications_summary"]', buildMedicationsSummary());
-  setAll('[name="providers_json"]',      buildProvidersJson());
-  setAll('[name="providers_summary"]',   buildProvidersSummary());
+  setAll('medications_json',    buildMedicationsJson());
+  setAll('medications_summary', buildMedicationsSummary());
+  setAll('providers_json',      buildProvidersJson());
+  setAll('providers_summary',   buildProvidersSummary());
 }
 
 document.getElementById('preview-btn').onclick = () => {
