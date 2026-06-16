@@ -22,8 +22,8 @@
     --border-strong: #c9cfd8;
     --text: #1a2332;
     --text-muted: #5a6578;
-    --accent: #1e4d8c;          /* generic default — overridden by the account's brand color */
-    --accent-hover: #163a6c;    /* default, 12% darker — recomputed when the brand color resolves */
+    --accent: #1e4d8c;          
+    --accent-hover: #163a6c;    
     --danger: #c94545;
     --danger-hover: #a83838;
     --success: #2d7a4f;
@@ -59,9 +59,8 @@
   }#income-sources-widget#income-sources-widget input:focus, #income-sources-widget#income-sources-widget select:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(97,163,183,0.25);
-  }#income-sources-widget#income-sources-widget /* amount field with a $ prefix */
-  .amount-wrap { position: relative; }#income-sources-widget#income-sources-widget .amount-wrap input { padding-left: 22px; }#income-sources-widget#income-sources-widget .amount-wrap::before {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }#income-sources-widget#income-sources-widget .amount-wrap { position: relative; }#income-sources-widget#income-sources-widget .amount-wrap input { padding-left: 22px; }#income-sources-widget#income-sources-widget .amount-wrap::before {
     content: "$";
     position: absolute;
     left: 10px; top: 50%;

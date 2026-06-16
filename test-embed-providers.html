@@ -19,12 +19,16 @@
 
 <div class="fake-ghl-form">
   <h3>↓ SIMULATED GHL HIDDEN FORM ↓</h3>
-  <form id="ghl-form" onsubmit="event.preventDefault(); alert(JSON.stringify({
-    providers_json: this.providers_json.value.substring(0,200),
+  <form id="ghl-form" onsubmit="event.preventDefault(); var dq=document.querySelector('[data-q=providers_json]'); alert(JSON.stringify({
+    providers_json_via_name: this.providers_json.value.substring(0,120),
+    providers_json_via_dataq: dq ? dq.value.substring(0,120) : '(none)',
     providers_summary: this.providers_summary.value
   }, null, 2));">
     <input type="hidden" name="providers_json">
     <input type="hidden" name="providers_summary">
+    <!-- Real GHL fields render with a RANDOM name and the clean key in data-q.
+         This row exercises the data-q match path — what actually saves on a live form/survey. -->
+    <input type="hidden" name="S420DUgi77vEhk7B5Oq3" data-q="providers_json">
     <button type="submit" style="padding: 12px 24px; background: #7c3aed; color: #fff; border: none; border-radius: 4px; font-size: 16px; cursor: pointer;">Continue → (GHL form submit)</button>
   </form>
 </div>

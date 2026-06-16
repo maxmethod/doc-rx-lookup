@@ -59,7 +59,7 @@ Paste each into a Custom Code / Custom HTML block. Ready-to-paste copies are in 
 For the widgets to render and save, each sub-account (via the snapshot) needs:
 
 - **Custom value:** `brand_primary_color` (a hex like `#0ea5e9`). Drives the widget color.
-- **Custom fields** (see `SNAPSHOT-FIELDS.md` for the full table): the JSON + summary fields above as **LARGE_TEXT**, plus `household_income` as **MONETARY**. The widget matches by the field's clean key (its Unique Key / `name` / `data-q`), so the keys must match exactly.
+- **Custom fields** (see `SNAPSHOT-FIELDS.md` for the full table): the JSON + summary fields above as **LARGE_TEXT**, plus `household_income` as **MONETARY**. The widget matches by the field's clean key (its Unique Key, which GHL renders in the field's `data-q` on the form/survey), so the keys must match exactly. The field must also be added to the **same form/survey step** the widget sits on, or its `data-q` element won't render and data won't save.
 
 ## Runtime architecture
 

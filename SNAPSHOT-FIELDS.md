@@ -2,9 +2,11 @@
 
 For the generic widgets to render (color) and save (data), every sub-account that
 loads the snapshot needs the items below. Widgets match GHL fields **by clean key**
-(the field's Unique Key, surfaced as the input `name=` / `data-q` on the rendered
-form) — **not** by field ID — so the keys must match exactly. Field IDs differ per
-account and are never hardcoded.
+(the field's Unique Key) — **not** by field ID. On a rendered GHL form/survey the
+field's HTML `name=` is a random internal id; GHL puts the clean key in the field's
+`data-q` attribute, which is what the widget actually matches. (The local test
+harnesses use `name=` placeholders only for standalone testing.) Field IDs differ
+per account and are never hardcoded.
 
 ## Custom value (drives widget color)
 
@@ -32,6 +34,7 @@ Create these on the sub-account (Settings → Custom Fields) with the exact **Un
 
 ### Notes
 
+- **Troubleshooting "data didn't save":** confirm the destination custom field is added to the **same form/survey step** the widget sits on. The widget writes into GHL's `[data-q="<key>"]` element, which only exists when that field is present on that step; on multi-step surveys the field must be on a step that is part of the submission.
 - **Do not** reuse single-line fields for the JSON/summary outputs — they can hold a lot of text; use Large Text.
 - If an account needs a widget to target a differently-named field, override per page without rebuilding:
   ```html

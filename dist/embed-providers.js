@@ -22,8 +22,8 @@
     --border-strong: #c9cfd8;
     --text: #1a2332;
     --text-muted: #5a6578;
-    --accent: #1e4d8c;          /* generic default — overridden by the account's brand color */
-    --accent-hover: #163a6c;    /* default, 12% darker — recomputed when the brand color resolves */
+    --accent: #1e4d8c;          
+    --accent-hover: #163a6c;    
     --danger: #c94545;
     --danger-hover: #a83838;
     --success: #2d7a4f;
@@ -59,7 +59,7 @@
   }#provider-lookup-widget#provider-lookup-widget input:focus, #provider-lookup-widget#provider-lookup-widget select:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(97,163,183,0.25);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
   }#provider-lookup-widget#provider-lookup-widget .search-wrap { position: relative; }#provider-lookup-widget#provider-lookup-widget .search-results {
     position: absolute;
     top: calc(100% + 4px);

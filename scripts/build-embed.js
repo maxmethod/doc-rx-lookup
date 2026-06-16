@@ -60,6 +60,7 @@ const WIDGETS = {
 // ID selectors on the same element is valid CSS and doubles the specificity
 // weight. Keeps :root custom-property declarations global; drops body/html rules.
 function scopeCss(css, scope) {
+  css = css.replace(/\/\*[\s\S]*?\*\//g, '');  // strip CSS comments so they can't be swept into a scoped selector
   const compound = `${scope}${scope}`;
   return css.replace(/([^{}]+)\{([^{}]*)\}/g, (match, selector, body) => {
     const sel = selector.trim();
