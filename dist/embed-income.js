@@ -1,0 +1,477 @@
+/**
+ * income-sources embed bootstrap
+ * Generated from income-sources.html by scripts/build-embed.js — do not hand-edit.
+ *
+ * Drop into a GHL funnel page (Custom Code element) with:
+ *   <div id="income-sources-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+ *   <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-income.js"></script>
+ *
+ * Or omit the <div> and the script appends the widget to <body>.
+ */
+(function () {
+  if (window.__incomeSourcesEmbedLoaded) return;
+  window.__incomeSourcesEmbedLoaded = true;
+
+  // ---- styles ----
+  const style = document.createElement('style');
+  style.setAttribute('data-income-sources', 'styles');
+  style.textContent = `:root {
+    --bg: #ffffff;
+    --surface: #f7f8fa;
+    --border: #e3e6eb;
+    --border-strong: #c9cfd8;
+    --text: #1a2332;
+    --text-muted: #5a6578;
+    --accent: #1e4d8c;          /* generic default — overridden by the account's brand color */
+    --accent-hover: #163a6c;    /* default, 12% darker — recomputed when the brand color resolves */
+    --danger: #c94545;
+    --danger-hover: #a83838;
+    --success: #2d7a4f;
+    --warning-bg: #fff8e6;
+    --warning-border: #e8c96b;
+    --radius: 6px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }#income-sources-widget#income-sources-widget * { box-sizing: border-box; }#income-sources-widget#income-sources-widget .inc-container {
+    max-width: 100%;
+    margin: 0;
+    font-family: var(--font);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+  }#income-sources-widget#income-sources-widget h1 { font-size: 22px; line-height: 1.3; margin: 0 0 4px; font-weight: 600; }#income-sources-widget#income-sources-widget .subtitle { color: var(--text-muted); margin-bottom: 28px; font-size: 14px; }#income-sources-widget#income-sources-widget .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+  }#income-sources-widget#income-sources-widget .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }#income-sources-widget#income-sources-widget .section-title { font-size: 16px; font-weight: 600; margin: 0; }#income-sources-widget#income-sources-widget .section-count { color: var(--text-muted); font-size: 13px; }#income-sources-widget#income-sources-widget label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }#income-sources-widget#income-sources-widget input[type="text"], #income-sources-widget#income-sources-widget input[type="number"], #income-sources-widget#income-sources-widget select {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: var(--font);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }#income-sources-widget#income-sources-widget input:focus, #income-sources-widget#income-sources-widget select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(97,163,183,0.25);
+  }#income-sources-widget#income-sources-widget /* amount field with a $ prefix */
+  .amount-wrap { position: relative; }#income-sources-widget#income-sources-widget .amount-wrap input { padding-left: 22px; }#income-sources-widget#income-sources-widget .amount-wrap::before {
+    content: "$";
+    position: absolute;
+    left: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 14px;
+    pointer-events: none;
+  }#income-sources-widget#income-sources-widget button {
+    font-family: var(--font);
+    font-size: 14px;
+    padding: 9px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.15s, border-color 0.15s;
+  }#income-sources-widget#income-sources-widget button:hover { background: var(--surface); }#income-sources-widget#income-sources-widget button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }#income-sources-widget#income-sources-widget button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }#income-sources-widget#income-sources-widget button.danger-text { background: transparent; border: none; color: var(--danger); padding: 4px 8px; font-size: 13px; }#income-sources-widget#income-sources-widget button.danger-text:hover { color: var(--danger-hover); background: transparent; }#income-sources-widget#income-sources-widget .items-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }#income-sources-widget#income-sources-widget .item-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }#income-sources-widget#income-sources-widget .item-card-main { flex: 1; min-width: 0; }#income-sources-widget#income-sources-widget .item-card-name { font-weight: 500; font-size: 14px; }#income-sources-widget#income-sources-widget .item-card-meta { font-size: 13px; color: var(--text-muted); margin-top: 2px; }#income-sources-widget#income-sources-widget .item-card-amount { font-weight: 600; font-size: 14px; white-space: nowrap; }#income-sources-widget#income-sources-widget .add-box { background: #fff; border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 14px; }#income-sources-widget#income-sources-widget .add-box h4 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }#income-sources-widget#income-sources-widget .field-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 10px; }#income-sources-widget#income-sources-widget .field-group.single { grid-template-columns: 1fr; }#income-sources-widget#income-sources-widget .actions-right { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }#income-sources-widget#income-sources-widget .help-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; }#income-sources-widget#income-sources-widget .empty-note { font-size: 13px; color: var(--text-muted); font-style: italic; padding: 6px 0 0; }#income-sources-widget#income-sources-widget .total-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 2px solid var(--border);
+    font-size: 15px;
+  }#income-sources-widget#income-sources-widget .total-line .label { font-weight: 500; }#income-sources-widget#income-sources-widget .total-line .value { font-weight: 700; font-size: 18px; color: var(--accent); }#income-sources-widget#income-sources-widget .total-line .sub { font-size: 12px; color: var(--text-muted); font-weight: 400; }#income-sources-widget#income-sources-widget .warn-banner {
+    background: #fff3cd; border: 1px solid #ffd866; color: #665300;
+    padding: 8px 12px; border-radius: var(--radius); font-size: 13px;
+    margin-bottom: 10px; display: none;
+  }#income-sources-widget#income-sources-widget .warn-banner.visible { display: block; }`;
+  document.head.appendChild(style);
+
+  // ---- markup ----
+  let container = document.getElementById('income-sources-widget') ||
+                  document.querySelector('[data-income-widget]');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'income-sources-widget';
+    document.body.appendChild(container);
+  }
+  container.innerHTML = `<div class="inc-container">
+  <p class="subtitle">Add each source of household income. Enter the amount and how often it's received — we'll total it to an estimated annual household income for you.</p>
+
+  <!-- ============ INCOME SOURCES ============ -->
+  <div class="section" id="income-section">
+    <div class="section-header">
+      <h2 class="section-title">Income sources</h2>
+      <span class="section-count" id="inc-count">0 of 15</span>
+    </div>
+
+    <div class="add-box" id="inc-add-box">
+      <h4>Add an income source</h4>
+      <div class="warn-banner" id="inc-warn">Enter a source name and an amount before adding.</div>
+
+      <div class="field-group">
+        <div>
+          <label for="inc-type">Income type</label>
+          <select id="inc-type">
+            <option value="W-2 / Employment">W-2 / Employment</option>
+            <option value="Self-Employment">Self-Employment</option>
+            <option value="Social Security">Social Security</option>
+            <option value="Pension / Retirement">Pension / Retirement</option>
+            <option value="Unemployment">Unemployment</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="inc-source">Source / Employer</label>
+          <input type="text" id="inc-source" placeholder="e.g. Acme Corp" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div>
+          <label for="inc-amount">Amount</label>
+          <div class="amount-wrap">
+            <input type="number" id="inc-amount" min="0" step="0.01" placeholder="0.00" inputmode="decimal">
+          </div>
+        </div>
+        <div>
+          <label for="inc-frequency">How often?</label>
+          <select id="inc-frequency">
+            <option value="Annual">Per year</option>
+            <option value="Monthly">Per month</option>
+            <option value="Biweekly">Every 2 weeks</option>
+            <option value="Weekly">Per week</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-group single">
+        <div>
+          <label for="inc-who">Who earns it? (optional)</label>
+          <input type="text" id="inc-who" placeholder="e.g. John Smith" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="actions-right">
+        <button type="button" id="inc-clear">Clear</button>
+        <button type="button" class="primary" id="inc-add">Add income</button>
+      </div>
+    </div>
+
+    <div class="items-list" id="inc-list"></div>
+    <p class="empty-note" id="inc-empty">No income added yet.</p>
+
+    <div class="total-line" id="inc-total" style="display:none;">
+      <span class="label">Estimated annual household income <span class="sub">(all sources, annualized)</span></span>
+      <span class="value" id="inc-total-value">$0</span>
+    </div>
+  </div>
+
+  <!-- Fallback placeholders so the widget still syncs when used standalone. -->
+  <input type="hidden" name="income_json">
+  <input type="hidden" name="income_summary">
+  <input type="hidden" name="household_income">
+</div>`;
+
+  // ---- widget logic ----
+  (function widgetMain() {
+// ============================================================
+// CONFIG
+// ============================================================
+const MAX_INCOME = 15;
+
+// Annualization multipliers by frequency.
+const ANNUALIZE = { 'Annual': 1, 'Monthly': 12, 'Biweekly': 26, 'Weekly': 52 };
+
+// Output field-key mapping. Each output is written to the GHL field whose clean
+// key matches (the field's Unique Key / input name= / data-q). We match by clean
+// key only, NO hardcoded field IDs, so this widget is snapshot-portable.
+//   income_json / income_summary -> LARGE_TEXT fields
+//   household_income -> a MONETARY field, auto-totaled from the entered sources
+// Override via window.INCOME_CONFIG = { fieldKeys: { household_income: [...] } }.
+const FIELD_KEYS = Object.assign({
+  income_json:      ['income_json'],
+  income_summary:   ['income_summary'],
+  household_income: ['household_income']
+}, (typeof window !== 'undefined' && window.INCOME_CONFIG && window.INCOME_CONFIG.fieldKeys) || {});
+
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  income: []   // { id, income_type, source_name, amount, frequency, who_earns }
+};
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function annualOf(row) {
+  return (Number(row.amount) || 0) * (ANNUALIZE[row.frequency] || 1);
+}
+function totalAnnual() {
+  return state.income.reduce((sum, r) => sum + annualOf(r), 0);
+}
+// money for display: $1,234 (no cents) or $1,234.56 when it has cents
+function fmtMoney(n) {
+  const v = Number(n) || 0;
+  const hasCents = Math.round(v * 100) % 100 !== 0;
+  return '$' + v.toLocaleString('en-US', { minimumFractionDigits: hasCents ? 2 : 0, maximumFractionDigits: 2 });
+}
+const FREQ_LABEL = { 'Annual': '/yr', 'Monthly': '/mo', 'Biweekly': '/2wk', 'Weekly': '/wk' };
+
+// ============================================================
+// ADD / REMOVE
+// ============================================================
+const els = {
+  type:   document.getElementById('inc-type'),
+  source: document.getElementById('inc-source'),
+  amount: document.getElementById('inc-amount'),
+  freq:   document.getElementById('inc-frequency'),
+  who:    document.getElementById('inc-who'),
+  warn:   document.getElementById('inc-warn'),
+  addBox: document.getElementById('inc-add-box')
+};
+
+[els.source, els.amount].forEach(el => el.addEventListener('input', () => {
+  if (els.source.value.trim() && Number(els.amount.value) > 0) els.warn.classList.remove('visible');
+}));
+
+function clearAddForm() {
+  els.type.value = 'W-2 / Employment';
+  els.source.value = '';
+  els.amount.value = '';
+  els.freq.value = 'Annual';
+  els.who.value = '';
+  els.warn.classList.remove('visible');
+}
+
+document.getElementById('inc-clear').onclick = clearAddForm;
+
+document.getElementById('inc-add').onclick = () => {
+  const source_name = els.source.value.trim();
+  const amount = Number(els.amount.value);
+  if (!source_name || !(amount > 0)) {
+    els.warn.classList.add('visible');
+    (!source_name ? els.source : els.amount).focus();
+    return;
+  }
+  state.income.push({
+    id: `inc_${Date.now()}`,
+    income_type: els.type.value,
+    source_name,
+    amount,
+    frequency: els.freq.value,
+    who_earns: els.who.value.trim() || null
+  });
+  clearAddForm();
+  renderIncome();
+  els.source.focus();
+};
+
+function renderIncome() {
+  const list = document.getElementById('inc-list');
+  const count = state.income.length;
+  document.getElementById('inc-count').textContent = `${count} of ${MAX_INCOME}`;
+  document.getElementById('inc-empty').style.display = count === 0 ? 'block' : 'none';
+
+  list.innerHTML = state.income.map(r => {
+    const per = `${fmtMoney(r.amount)}${FREQ_LABEL[r.frequency] || ''}`;
+    const ann = annualOf(r);
+    const annNote = r.frequency !== 'Annual' ? ` ≈ ${fmtMoney(ann)}/yr` : '';
+    const meta = [escapeHtml(r.income_type)];
+    if (r.who_earns) meta.push(escapeHtml(r.who_earns));
+    return `
+      <div class="item-card">
+        <div class="item-card-main">
+          <div class="item-card-name">${escapeHtml(r.source_name)}</div>
+          <div class="item-card-meta">${meta.join(' · ')}</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="item-card-amount">${per}</div>
+          ${annNote ? `<div class="item-card-meta">${annNote.trim()}</div>` : ''}
+        </div>
+        <button class="danger-text" data-remove-inc="${r.id}">Remove</button>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-remove-inc]').forEach(btn => {
+    btn.onclick = () => {
+      state.income = state.income.filter(r => r.id !== btn.dataset.removeInc);
+      renderIncome();
+    };
+  });
+
+  // running total
+  const total = totalAnnual();
+  const totalEl = document.getElementById('inc-total');
+  totalEl.style.display = count > 0 ? 'flex' : 'none';
+  document.getElementById('inc-total-value').textContent = fmtMoney(total);
+
+  els.addBox.style.display = count >= MAX_INCOME ? 'none' : 'block';
+
+  syncHiddenFields();
+}
+
+// ============================================================
+// JSON + SUMMARY BUILDERS
+// ============================================================
+function buildIncomeJson() {
+  return JSON.stringify({
+    version: '1.0',
+    count: state.income.length,
+    total_annual: Math.round(totalAnnual() * 100) / 100,
+    items: state.income.map(r => ({
+      id: r.id,
+      income_type: r.income_type,
+      source_name: r.source_name,
+      amount: r.amount,
+      frequency: r.frequency,
+      annual_amount: Math.round(annualOf(r) * 100) / 100,
+      who_earns: r.who_earns
+    }))
+  });
+}
+
+function buildIncomeSummary() {
+  if (state.income.length === 0) return '';
+  const lines = [`INCOME SOURCES (${state.income.length})`, ''];
+  for (const r of state.income) {
+    let line = `• ${r.source_name} (${r.income_type}) — ${fmtMoney(r.amount)} ${r.frequency.toLowerCase()}`;
+    if (r.frequency !== 'Annual') line += ` ≈ ${fmtMoney(annualOf(r))}/yr`;
+    if (r.who_earns) line += ` — ${r.who_earns}`;
+    lines.push(line);
+  }
+  lines.push('', `Estimated annual household income: ${fmtMoney(totalAnnual())}`);
+  return lines.join('\n');
+}
+
+// Plain numeric value for the MONETARY "2026 Household Income" field.
+function buildHouseholdTotal() {
+  return (Math.round(totalAnnual() * 100) / 100).toString();
+}
+
+function syncHiddenFields() {
+  const setAll = (keys, value) => {
+    for (const key of (Array.isArray(keys) ? keys : [keys])) {
+      if (!key) continue;
+      const selector = `[name="${key}"], [data-q="${key}"]`;
+      document.querySelectorAll(selector).forEach(el => {
+        el.value = value;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    }
+  };
+  setAll(FIELD_KEYS.income_json,    buildIncomeJson());
+  setAll(FIELD_KEYS.income_summary, buildIncomeSummary());
+  // Only write the household total when there's at least one source — never
+  // clobber a manually-entered 2026 Household Income with an empty/zero value.
+  if (state.income.length > 0) setAll(FIELD_KEYS.household_income, buildHouseholdTotal());
+}
+
+// ============================================================
+// PRIMARY COLOR INHERITANCE
+// ------------------------------------------------------------
+// Resolution order (first valid wins):
+//   1. window.<WIDGET>_CONFIG.primaryColor — explicit JS override
+//   2. data-primary-color on the container. In GHL set this to the literal
+//      {{custom_values.brand_primary_color}} — GHL substitutes the account's
+//      brand color server-side (works on both forms and surveys).
+//   3. Auto-detect: GHL form submit-button bg, then survey Next-button color.
+//   4. Fallback: the widget's default --accent (#1e4d8c).
+// Unresolved {{...}} merge tags are ignored (see isValidColor).
+// ============================================================
+function isValidColor(v) {
+  if (!v || typeof v !== 'string') return false;
+  const s = v.trim();
+  if (!s) return false;
+  if (s.includes('{{') || s.includes('}}')) return false;
+  return /^#[0-9a-f]{3,8}$/i.test(s) || /^rgba?\(/i.test(s);
+}
+
+function applyPrimaryColor() {
+  const widget = document.getElementById('income-sources-widget');
+  if (!widget) return;
+  let color = null;
+  if (typeof window !== 'undefined' && window.INCOME_CONFIG && isValidColor(window.INCOME_CONFIG.primaryColor)) {
+    color = window.INCOME_CONFIG.primaryColor;
+  } else if (widget.dataset && isValidColor(widget.dataset.primaryColor)) {
+    color = widget.dataset.primaryColor;
+  } else {
+    // No explicit color set — auto-detect the host's brand color.
+    // Form-style: GHL forms put the brand color inline on the submit button bg.
+    const formBtn = document.querySelector('button[type="submit"]');
+    if (formBtn && isValidColor(formBtn.style.backgroundColor)) {
+      color = formBtn.style.backgroundColor;
+    }
+    // Survey-style: the footer Next/Submit button. Prefer a filled background,
+    // else fall back to the (brand-colored) text color GHL uses by default.
+    if (!color) {
+      const surveyBtn = document.querySelector(
+        '.ghl-footer-next, .ghl-footer-previous, .ghl-footer-preview, .ghl-footer .ghl-btn'
+      );
+      if (surveyBtn) {
+        const s = getComputedStyle(surveyBtn);
+        const transparent = ['rgba(0, 0, 0, 0)', 'transparent', ''];
+        const skipColors = [
+          'rgb(0, 0, 0)', 'rgba(0, 0, 0, 0)', 'rgb(96, 113, 121)',
+          'rgb(255, 255, 255)', 'rgba(255, 255, 255, 1)'
+        ];
+        const bg = s.backgroundColor;
+        const fg = s.color;
+        if (bg && !transparent.includes(bg) && !skipColors.includes(bg)) {
+          color = bg;
+        } else if (fg && !skipColors.includes(fg) && isValidColor(fg)) {
+          color = fg;
+        }
+      }
+    }
+  }
+  if (!color) return;
+  const hex8 = color.match(/^#([0-9a-f]{8})$/i);
+  if (hex8) color = '#' + hex8[1].substring(0, 6);
+  widget.style.setProperty('--accent', color);
+  widget.style.setProperty('--accent-hover', darken(color, 0.12));
+}
+
+function darken(color, amount) {
+  let r, g, b;
+  const hex = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  const rgb = color.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+  if (hex) {
+    const h = hex[1].length === 3 ? hex[1].split('').map(c => c + c).join('') : hex[1];
+    r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+  } else if (rgb) { r = +rgb[1]; g = +rgb[2]; b = +rgb[3]; } else { return color; }
+  const d = v => Math.max(0, Math.round(v * (1 - amount))).toString(16).padStart(2, '0');
+  return '#' + d(r) + d(g) + d(b);
+}
+
+applyPrimaryColor();
+renderIncome();
+  })();
+})();

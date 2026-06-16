@@ -1,32 +1,66 @@
 #!/usr/bin/env node
-// Build dist/embed.js — a self-bootstrapping single-file embed version of the
-// widget. Users paste one <script> tag into a GHL Custom Code block and the
-// script injects styles + markup + logic into the page.
+// Build the self-bootstrapping single-file embed(s). Each widget compiles to one
+// dist/*.js file: users paste a <script> tag into a GHL Custom Code block and it
+// injects styles + markup + logic into the page.
 //
-// Usage: node scripts/build-embed.js
+// Usage:
+//   node scripts/build-embed.js            # build every widget
+//   node scripts/build-embed.js providers  # build only one (providers | medications | coverage | income)
 
 const fs = require('fs');
 const path = require('path');
 
-const input = path.resolve(__dirname, '..', 'rx-provider-lookup.html');
-const output = path.resolve(__dirname, '..', 'dist', 'embed.js');
+const ROOT = path.resolve(__dirname, '..');
 
-const html = fs.readFileSync(input, 'utf8');
+// One entry per widget. scope/containerId/guard/configGlobal must be unique so
+// two embeds can coexist on the same GHL page without colliding.
+const WIDGETS = {
+  medications: {
+    input: 'medications-lookup.html',
+    output: 'dist/embed-medications.js',
+    containerId: 'medications-lookup-widget',
+    dataAttr: 'data-medications-widget',
+    styleAttr: 'data-medications-lookup',
+    guard: '__medsLookupEmbedLoaded',
+    label: 'medications-lookup'
+  },
+  providers: {
+    input: 'provider-lookup.html',
+    output: 'dist/embed-providers.js',
+    containerId: 'provider-lookup-widget',
+    dataAttr: 'data-provider-widget',
+    styleAttr: 'data-provider-lookup',
+    guard: '__provLookupEmbedLoaded',
+    label: 'provider-lookup'
+  },
+  coverage: {
+    input: 'current-coverage-lookup.html',
+    output: 'dist/embed-coverage.js',
+    containerId: 'coverage-lookup-widget',
+    dataAttr: 'data-coverage-widget',
+    styleAttr: 'data-coverage-lookup',
+    guard: '__coverageWidgetEmbedLoaded',
+    label: 'current-coverage'
+  },
+  income: {
+    input: 'income-sources.html',
+    output: 'dist/embed-income.js',
+    containerId: 'income-sources-widget',
+    dataAttr: 'data-income-widget',
+    styleAttr: 'data-income-sources',
+    guard: '__incomeSourcesEmbedLoaded',
+    label: 'income-sources'
+  }
+};
 
-// Extract <style>...</style>
-const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/);
-if (!styleMatch) throw new Error('Could not find <style> block');
-const rawCss = styleMatch[1].trim();
-
-// Scope every selector to #rx-lookup-widget so the widget's CSS cannot leak
-// out and affect the host page. We DOUBLE the scope id (#x#x) to bump
-// specificity above typical host-page form framework rules — this is the
-// cheapest way to win the cascade against e.g. GHL's .hl-form-input styles
-// without resorting to !important. Two ID selectors targeting the same
-// element is valid CSS and effectively doubles the specificity weight.
-// Keeps :root custom-property declarations global, drops body/html rules.
+// Scope every selector to #<containerId> so the widget's CSS cannot leak out and
+// affect the host page. We DOUBLE the scope id (#x#x) to bump specificity above
+// typical host-page form-framework rules — the cheapest way to win the cascade
+// against e.g. GHL's .hl-form-input styles without resorting to !important. Two
+// ID selectors on the same element is valid CSS and doubles the specificity
+// weight. Keeps :root custom-property declarations global; drops body/html rules.
 function scopeCss(css, scope) {
-  const compound = `${scope}${scope}`;  // doubled-id specificity boost
+  const compound = `${scope}${scope}`;
   return css.replace(/([^{}]+)\{([^{}]*)\}/g, (match, selector, body) => {
     const sel = selector.trim();
     if (sel === ':root') return `${sel} {${body}}`;
@@ -41,50 +75,54 @@ function scopeCss(css, scope) {
   });
 }
 
-const css = scopeCss(rawCss, '#rx-lookup-widget');
+const escapeForTemplate = s =>
+  s.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
 
-// Extract body content (between <body> ... </body>, trimmed)
-const bodyMatch = html.match(/<body>([\s\S]*?)<\/body>/);
-if (!bodyMatch) throw new Error('Could not find <body> block');
-let body = bodyMatch[1].trim();
+function build(widget) {
+  const input = path.resolve(ROOT, widget.input);
+  const output = path.resolve(ROOT, widget.output);
+  const html = fs.readFileSync(input, 'utf8');
+  const scope = `#${widget.containerId}`;
 
-// Strip the <script>...</script> from the body — we'll emit it separately
-const scriptMatch = body.match(/<script>([\s\S]*?)<\/script>/);
-if (!scriptMatch) throw new Error('Could not find <script> block in body');
-const js = scriptMatch[1].trim();
-body = body.replace(scriptMatch[0], '').trim();
+  const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/);
+  if (!styleMatch) throw new Error(`[${widget.label}] Could not find <style> block`);
+  const css = scopeCss(styleMatch[1].trim(), scope);
 
-// Escape for JS template literals: backticks and ${ sequences
-const escapeForTemplate = s => s.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+  const bodyMatch = html.match(/<body>([\s\S]*?)<\/body>/);
+  if (!bodyMatch) throw new Error(`[${widget.label}] Could not find <body> block`);
+  let body = bodyMatch[1].trim();
 
-const embed = `/**
- * doc-rx-lookup embed bootstrap
- * Generated from rx-provider-lookup.html
+  const scriptMatch = body.match(/<script>([\s\S]*?)<\/script>/);
+  if (!scriptMatch) throw new Error(`[${widget.label}] Could not find <script> block in body`);
+  const js = scriptMatch[1].trim();
+  body = body.replace(scriptMatch[0], '').trim();
+
+  const embed = `/**
+ * ${widget.label} embed bootstrap
+ * Generated from ${widget.input} by scripts/build-embed.js — do not hand-edit.
  *
- * Drop into a GHL funnel page with:
- *   <div id="rx-lookup-widget"></div>
- *   <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed.js"></script>
+ * Drop into a GHL funnel page (Custom Code element) with:
+ *   <div id="${widget.containerId}" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+ *   <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/${widget.output}"></script>
  *
- * Or omit the <div> and the script will append the widget to <body>.
+ * Or omit the <div> and the script appends the widget to <body>.
  */
 (function () {
-  if (window.__rxLookupEmbedLoaded) return;
-  window.__rxLookupEmbedLoaded = true;
+  if (window.${widget.guard}) return;
+  window.${widget.guard} = true;
 
   // ---- styles ----
   const style = document.createElement('style');
-  style.setAttribute('data-rx-lookup', 'styles');
+  style.setAttribute('${widget.styleAttr}', 'styles');
   style.textContent = \`${escapeForTemplate(css)}\`;
   document.head.appendChild(style);
 
   // ---- markup ----
-  // Find an explicit container or create one. The page may pre-place
-  // <div id="rx-lookup-widget"></div> where it wants the widget to appear.
-  let container = document.getElementById('rx-lookup-widget') ||
-                  document.querySelector('[data-rx-lookup-widget]');
+  let container = document.getElementById('${widget.containerId}') ||
+                  document.querySelector('[${widget.dataAttr}]');
   if (!container) {
     container = document.createElement('div');
-    container.id = 'rx-lookup-widget';
+    container.id = '${widget.containerId}';
     document.body.appendChild(container);
   }
   container.innerHTML = \`${escapeForTemplate(body)}\`;
@@ -96,7 +134,16 @@ ${js}
 })();
 `;
 
-fs.mkdirSync(path.dirname(output), { recursive: true });
-fs.writeFileSync(output, embed);
-const stats = fs.statSync(output);
-console.log(`Wrote ${path.basename(output)} (${(stats.size / 1024).toFixed(1)} KB)`);
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  fs.writeFileSync(output, embed);
+  const kb = (fs.statSync(output).size / 1024).toFixed(1);
+  console.log(`[${widget.label}] wrote ${widget.output} (${kb} KB)`);
+}
+
+const only = process.argv[2];
+const names = only ? [only] : Object.keys(WIDGETS);
+for (const name of names) {
+  const w = WIDGETS[name];
+  if (!w) { console.error(`Unknown widget "${name}". Known: ${Object.keys(WIDGETS).join(', ')}`); process.exit(1); }
+  build(w);
+}

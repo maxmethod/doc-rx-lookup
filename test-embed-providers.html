@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Embed Test — Doctors/Providers (GHL Funnel Simulation)</title>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 0; }
+  .fake-funnel-nav { background: #222; color: #fff; padding: 16px; text-align: center; }
+  .fake-ghl-form { max-width: 780px; margin: 20px auto; padding: 20px; border: 2px dashed #888; background: #fafafa; }
+  .fake-ghl-form h3 { margin-top: 0; color: #666; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="fake-funnel-nav">FAKE FUNNEL HEADER</div>
+
+<!-- In GHL: data-primary-color="{{custom_values.brand_primary_color}}".
+     Here we hardcode a demo color to simulate a resolved brand color. -->
+<div id="provider-lookup-widget" data-primary-color="#7c3aed"></div>
+
+<div class="fake-ghl-form">
+  <h3>↓ SIMULATED GHL HIDDEN FORM ↓</h3>
+  <form id="ghl-form" onsubmit="event.preventDefault(); alert(JSON.stringify({
+    providers_json: this.providers_json.value.substring(0,200),
+    providers_summary: this.providers_summary.value
+  }, null, 2));">
+    <input type="hidden" name="providers_json">
+    <input type="hidden" name="providers_summary">
+    <button type="submit" style="padding: 12px 24px; background: #7c3aed; color: #fff; border: none; border-radius: 4px; font-size: 16px; cursor: pointer;">Continue → (GHL form submit)</button>
+  </form>
+</div>
+
+<script src="./dist/embed-providers.js"></script>
+</body>
+</html>

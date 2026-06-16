@@ -1,53 +1,94 @@
 # doc-rx-lookup
 
-Client-side prescription and provider lookup widget for Max Methodology quote forms. Embeds in a GoHighLevel funnel page, searches the public NLM APIs for drugs and doctors, writes structured output to GHL custom fields for HealthSherpa handoff.
+Client-side enrollment widgets for Max Methodology quote forms. Each widget embeds in a GoHighLevel funnel/survey page, collects structured data (drugs, doctors, current coverage, income), and writes it into GHL custom fields for HealthSherpa handoff.
+
+**This is the generic, snapshot-portable version.** Widgets match GHL fields by **clean key only** (no hardcoded field IDs) and pull their brand color from a GHL **custom value**, so the same build drops into any sub-account via the shared snapshot. (The Lion's Pride build in `lpi-enrollment-widgets` is a separate fork that hardcodes LPI's teal + field IDs.)
 
 **This repo is intentionally public.** The code runs entirely in the browser and is visible via View Source on any page that embeds it. Do not commit secrets, API keys, customer data, or anything you would not want indexed by Google.
 
-## What's in the repo
+## Widgets — four independent embeds
 
-| Path | Purpose |
-| --- | --- |
-| `rx-provider-lookup.html` | Full standalone version (with HTML shell). Useful for local dev and testing outside GHL. |
-| `dist/embed.js` | **Production embed.** Self-bootstrapping single-file version — paste one `<script>` tag into a GHL Custom Code block and the widget injects itself. |
-| `dist/us-zips.json` | Bundled ZIP coordinate dataset, served via jsDelivr. ~1.2MB uncompressed, ~350KB gzipped. |
-| `scripts/build-embed.js` | Regenerates `dist/embed.js` from `rx-provider-lookup.html`. Run after any HTML change. |
-| `scripts/build-zip-dataset.js` | Regenerates `dist/us-zips.json` from the GeoNames US postal-code export. |
+| Widget | Source | Embed | Container id | Writes (clean keys) |
+| --- | --- | --- | --- | --- |
+| **Doctors / Providers** | `provider-lookup.html` | `dist/embed-providers.js` | `provider-lookup-widget` | `providers_json` · `providers_summary` |
+| **Medications / Rx** | `medications-lookup.html` | `dist/embed-medications.js` | `medications-lookup-widget` | `medications_json` · `medications_summary` |
+| **Current Coverage** | `current-coverage-lookup.html` | `dist/embed-coverage.js` | `coverage-lookup-widget` | `current_coverage_json` · `current_coverage_summary` |
+| **Income Sources** | `income-sources.html` | `dist/embed-income.js` | `income-sources-widget` | `income_json` · `income_summary` · `household_income` (auto-total) |
 
-## GHL embed snippet
+Each is a **separate embed** with a distinct container id / config global / load-guard, so any combination can coexist on one page. Drop each into its own GHL Custom Code block.
 
-Paste into a Custom Code / Custom HTML block on the funnel page where you want the widget to appear:
+> **Legacy:** `rx-provider-lookup.html` → `dist/embed.js` is the original *combined* doctor+Rx widget (container `rx-lookup-widget`). It is kept for backward-compat with any page already embedding it; new work should use the four split widgets above. `scripts/build-embed.js` builds only the split widgets — the legacy `dist/embed.js` is frozen.
+
+## Brand color — driven by a GHL custom value
+
+Set `data-primary-color` on the container to the literal merge tag **`{{custom_values.brand_primary_color}}`**. GHL substitutes the account's brand color server-side (works on forms and surveys). Resolution order (first valid wins):
+
+1. `window.<WIDGET>_CONFIG.primaryColor` — explicit JS override
+2. `data-primary-color` on the container (the custom-value merge tag)
+3. Auto-detect: GHL form submit-button background, then survey Next-button color
+4. Fallback: the widget's neutral default `#1e4d8c`
+
+Unresolved `{{...}}` merge tags are ignored (the widget falls through to auto-detect / default), so a sub-account that hasn't set the custom value still renders sanely.
+
+## GHL embed snippets
+
+Paste each into a Custom Code / Custom HTML block. Ready-to-paste copies are in `GHL-EMBED-SNIPPETS.html`.
 
 ```html
-<div id="rx-lookup-widget"></div>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v1.0.9/dist/embed.js"></script>
+<!-- Doctors / Providers -->
+<div id="provider-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-providers.js"></script>
+
+<!-- Medications / Rx -->
+<div id="medications-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-medications.js"></script>
+
+<!-- Current Coverage -->
+<div id="coverage-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-coverage.js"></script>
+
+<!-- Income Sources -->
+<div id="income-sources-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-income.js"></script>
 ```
 
-On the same funnel page, place a GHL form containing the four custom fields as hidden inputs (`medications_json`, `medications_summary`, `providers_json`, `providers_summary`) and a submit button styled as "Continue". Configure the form's "On Submit" to redirect to the next funnel step. The widget will find those hidden inputs by their `name` attributes and keep them synced automatically as the user makes selections.
+> Pin `@vX.Y.Z` to a real tag, not `@main`. Test on the **published** form/survey — GHL's in-builder preview may not run `<script>`.
+
+## What the snapshot must contain
+
+For the widgets to render and save, each sub-account (via the snapshot) needs:
+
+- **Custom value:** `brand_primary_color` (a hex like `#0ea5e9`). Drives the widget color.
+- **Custom fields** (see `SNAPSHOT-FIELDS.md` for the full table): the JSON + summary fields above as **LARGE_TEXT**, plus `household_income` as **MONETARY**. The widget matches by the field's clean key (its Unique Key / `name` / `data-q`), so the keys must match exactly.
 
 ## Runtime architecture
 
 1. **Drug search** → RxNorm (`rxnav.nlm.nih.gov`) — fuzzy name search, strength/form picker, NDC lookup. CORS open.
-2. **Doctor search** → NLM Clinical Tables NPI index (`clinicaltables.nlm.nih.gov`) — name-based, filtered server-side by state, filtered client-side by radius using the bundled ZIP dataset. CORS open.
-3. **ZIP coordinates** → this repo's `us-zips.json` via jsDelivr. Falls back to `api.zippopotam.us` on per-ZIP miss (very rare; brand-new ZIPs or military APO/FPO).
-4. **Output** → four GHL custom fields: `medications_json`, `medications_summary`, `providers_json`, `providers_summary`. No backend, no database, no PHI ever touches this CDN.
+2. **Doctor search** → NLM Clinical Tables NPI index (`clinicaltables.nlm.nih.gov`) — name-based, filtered server-side by state, client-side by radius using the bundled ZIP dataset. CORS open.
+3. **ZIP coordinates** (providers only) → this repo's `dist/us-zips.json` via jsDelivr; falls back to `api.zippopotam.us` on per-ZIP miss. On `localhost` auto-resolves to `./dist/us-zips.json`.
+4. **Coverage / Income** → no external API; fully self-contained.
+5. **Output** → GHL custom fields by clean key. No backend, no database, no PHI on the CDN.
+
+## Build
+
+`dist/*.js` embeds are **build artifacts — never hand-edit them.** After any change to a widget's HTML:
+
+```bash
+node scripts/build-embed.js              # build all four split widgets
+node scripts/build-embed.js providers    # or just one (providers | medications | coverage | income)
+```
+
+The build scopes each widget's CSS to its container id (doubled `#id#id` for specificity, no `!important`) and inlines markup + logic into a self-bootstrapping IIFE.
 
 ## Versioning and deploys
 
-jsDelivr caches `@main` URLs for up to 12 hours — a bug fix pushed to `main` will not reach users promptly. **Always deploy via git tags.** The recommended flow:
+jsDelivr serves **immutable content per git tag** and caches `@main` for up to 12h. **Always deploy by tag:**
 
-1. Make changes on a branch, merge to `main`.
-2. Tag a new semver version: `git tag v1.0.1 && git push origin v1.0.1`.
-3. Update the embedded `ZIP_DATASET_VERSION` constant in `rx-provider-lookup.html` to the new tag.
-4. Update the `<script src>` in the GHL snapshot to the new tag.
-5. Propagate the snapshot (or let subaccounts update themselves on their next sync).
+1. Commit changes to `main`.
+2. `git tag vX.Y.Z && git push origin vX.Y.Z`.
+3. Bump `@vX.Y.Z` in the snapshot's embed snippets and propagate.
 
-jsDelivr URL pattern once you start hosting the HTML/JS via CDN:
-
-```
-https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/rx-provider-lookup.html
-https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/us-zips.json
-```
+> ⚠️ **jsDelivr serving glitch (seen 2026-06-16):** certain files can get stuck returning a self-referential `301` redirect loop on a given tag (the file never loads). It is not a code problem — the file is fine on GitHub and a purge does not always clear it. Workaround: serve the affected file from `https://rawcdn.githack.com/maxmethod/doc-rx-lookup/<tag>/<path>` (production githack), or cut a fresh tag. Verify each `dist/embed-*.js` returns HTTP 200 from jsDelivr before relying on it in the snapshot.
 
 ## Regenerating the ZIP dataset
 
@@ -55,22 +96,19 @@ https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/us-zips.json
 curl -L -o geonames-us.zip https://download.geonames.org/export/zip/US.zip
 unzip geonames-us.zip US.txt
 node scripts/build-zip-dataset.js
-git add dist/us-zips.json
-git commit -m "Refresh ZIP dataset from GeoNames YYYY-MM-DD"
+git add dist/us-zips.json && git commit -m "Refresh ZIP dataset from GeoNames YYYY-MM-DD"
 ```
 
 The source `US.txt` is `.gitignore`'d — only the processed `dist/us-zips.json` ships.
 
 ## Local development
 
-Serve the folder with any static server:
-
 ```bash
-npx http-server . -p 8787 -c-1
-# then open http://localhost:8787/rx-provider-lookup.html
+python3 -m http.server 8787    # or: npx http-server . -p 8787 -c-1
+# then open http://localhost:8787/test-embed-providers.html (or -medications / -coverage / -income)
 ```
 
-When the page is served from `localhost`, `ZIP_DATASET_URL` auto-resolves to `./dist/us-zips.json` so you can test against the local build without pushing. In production (non-localhost), it pins to the jsDelivr tagged URL.
+Each `test-embed-*.html` simulates a GHL page: the widget div + a fake hidden form so you can watch the clean keys populate on submit. When served from `localhost`, the provider widget's `ZIP_DATASET_URL` auto-resolves to `./dist/us-zips.json`.
 
 ## Attribution
 

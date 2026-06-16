@@ -1,0 +1,25 @@
+<!-- ============================================================
+     doc-rx-lookup — generic GHL embeds for the quote form/survey
+     Paste each block into its own Custom Code / Custom HTML element.
+     - Color comes from the account's {{custom_values.brand_primary_color}}.
+     - Pin @vX.Y.Z to a real tag (not @main).
+     - Test on the PUBLISHED form/survey (GHL preview may not run <script>).
+     - The page must also contain the matching custom fields as inputs
+       (hidden is fine) — see SNAPSHOT-FIELDS.md.
+     ============================================================ -->
+
+<!-- Doctors / Providers  ->  providers_json, providers_summary -->
+<div id="provider-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-providers.js"></script>
+
+<!-- Medications / Rx  ->  medications_json, medications_summary -->
+<div id="medications-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-medications.js"></script>
+
+<!-- Current Coverage  ->  current_coverage_json, current_coverage_summary -->
+<div id="coverage-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-coverage.js"></script>
+
+<!-- Income Sources  ->  income_json, income_summary, household_income (auto-total) -->
+<div id="income-sources-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-income.js"></script>

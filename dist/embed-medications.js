@@ -1,0 +1,650 @@
+/**
+ * medications-lookup embed bootstrap
+ * Generated from medications-lookup.html by scripts/build-embed.js — do not hand-edit.
+ *
+ * Drop into a GHL funnel page (Custom Code element) with:
+ *   <div id="medications-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+ *   <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-medications.js"></script>
+ *
+ * Or omit the <div> and the script appends the widget to <body>.
+ */
+(function () {
+  if (window.__medsLookupEmbedLoaded) return;
+  window.__medsLookupEmbedLoaded = true;
+
+  // ---- styles ----
+  const style = document.createElement('style');
+  style.setAttribute('data-medications-lookup', 'styles');
+  style.textContent = `:root {
+    --bg: #ffffff;
+    --surface: #f7f8fa;
+    --border: #e3e6eb;
+    --border-strong: #c9cfd8;
+    --text: #1a2332;
+    --text-muted: #5a6578;
+    --accent: #1e4d8c;          /* generic default — overridden by the account's brand color */
+    --accent-hover: #163a6c;    /* default, 12% darker — recomputed when the brand color resolves */
+    --danger: #c94545;
+    --danger-hover: #a83838;
+    --success: #2d7a4f;
+    --warning-bg: #fff8e6;
+    --warning-border: #e8c96b;
+    --radius: 6px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.08);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }#medications-lookup-widget#medications-lookup-widget * { box-sizing: border-box; }#medications-lookup-widget#medications-lookup-widget .meds-container {
+    max-width: 100%;
+    margin: 0;
+    font-family: var(--font);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+  }#medications-lookup-widget#medications-lookup-widget h1 { font-size: 22px; line-height: 1.3; margin: 0 0 4px; font-weight: 600; }#medications-lookup-widget#medications-lookup-widget .subtitle { color: var(--text-muted); margin-bottom: 28px; font-size: 14px; }#medications-lookup-widget#medications-lookup-widget .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+  }#medications-lookup-widget#medications-lookup-widget .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }#medications-lookup-widget#medications-lookup-widget .section-title { font-size: 16px; font-weight: 600; margin: 0; }#medications-lookup-widget#medications-lookup-widget .section-count { color: var(--text-muted); font-size: 13px; }#medications-lookup-widget#medications-lookup-widget label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }#medications-lookup-widget#medications-lookup-widget input[type="text"], #medications-lookup-widget#medications-lookup-widget input[type="number"], #medications-lookup-widget#medications-lookup-widget select {
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: var(--font);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }#medications-lookup-widget#medications-lookup-widget input:focus, #medications-lookup-widget#medications-lookup-widget select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(97,163,183,0.25);
+  }#medications-lookup-widget#medications-lookup-widget .search-wrap { position: relative; }#medications-lookup-widget#medications-lookup-widget .search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: #fff;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    max-height: 360px;
+    overflow-y: auto;
+    z-index: 20;
+    display: none;
+  }#medications-lookup-widget#medications-lookup-widget .search-results.open { display: block; }#medications-lookup-widget#medications-lookup-widget .result-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 14px; }#medications-lookup-widget#medications-lookup-widget .result-item:last-child { border-bottom: none; }#medications-lookup-widget#medications-lookup-widget .result-item:hover, #medications-lookup-widget#medications-lookup-widget .result-item.active { background: #eef5f7; }#medications-lookup-widget#medications-lookup-widget .result-item .name { font-weight: 500; }#medications-lookup-widget#medications-lookup-widget .result-item .meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }#medications-lookup-widget#medications-lookup-widget .result-empty { padding: 14px 12px; font-size: 13px; color: var(--text-muted); text-align: center; }#medications-lookup-widget#medications-lookup-widget .result-empty a { color: var(--accent); cursor: pointer; text-decoration: underline; }#medications-lookup-widget#medications-lookup-widget .rx-row { display: flex; gap: 10px; align-items: end; }#medications-lookup-widget#medications-lookup-widget .rx-row > * { flex: 1; }#medications-lookup-widget#medications-lookup-widget button {
+    font-family: var(--font);
+    font-size: 14px;
+    padding: 9px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.15s, border-color 0.15s;
+  }#medications-lookup-widget#medications-lookup-widget button:hover { background: var(--surface); }#medications-lookup-widget#medications-lookup-widget button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }#medications-lookup-widget#medications-lookup-widget button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }#medications-lookup-widget#medications-lookup-widget button.danger-text { background: transparent; border: none; color: var(--danger); padding: 4px 8px; font-size: 13px; }#medications-lookup-widget#medications-lookup-widget button.danger-text:hover { color: var(--danger-hover); background: transparent; }#medications-lookup-widget#medications-lookup-widget .items-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }#medications-lookup-widget#medications-lookup-widget .item-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }#medications-lookup-widget#medications-lookup-widget .item-card.manual { background: var(--warning-bg); border-color: var(--warning-border); }#medications-lookup-widget#medications-lookup-widget .item-card-main { flex: 1; min-width: 0; }#medications-lookup-widget#medications-lookup-widget .item-card-name { font-weight: 500; font-size: 14px; }#medications-lookup-widget#medications-lookup-widget .item-card-meta { font-size: 13px; color: var(--text-muted); margin-top: 2px; }#medications-lookup-widget#medications-lookup-widget .item-card-badge {
+    display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 3px;
+    background: #e3a23a; color: #fff; margin-left: 6px;
+    text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600;
+  }#medications-lookup-widget#medications-lookup-widget .manual-entry-box { background: #fff; border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 14px; margin-top: 10px; }#medications-lookup-widget#medications-lookup-widget .manual-entry-box h4 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }#medications-lookup-widget#medications-lookup-widget .field-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 10px; }#medications-lookup-widget#medications-lookup-widget .field-group.single { grid-template-columns: 1fr; }#medications-lookup-widget#medications-lookup-widget .actions-right { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }#medications-lookup-widget#medications-lookup-widget .loading-inline { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--text-muted); }#medications-lookup-widget#medications-lookup-widget .help-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; }#medications-lookup-widget#medications-lookup-widget .help-text a { color: var(--accent); cursor: pointer; }`;
+  document.head.appendChild(style);
+
+  // ---- markup ----
+  let container = document.getElementById('medications-lookup-widget') ||
+                  document.querySelector('[data-medications-widget]');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'medications-lookup-widget';
+    document.body.appendChild(container);
+  }
+  container.innerHTML = `<div class="meds-container">
+  <p class="subtitle">Add any prescriptions you take. Search by drug name, or enter one manually.</p>
+
+  <!-- ============ MEDICATIONS ============ -->
+  <div class="section" id="medications-section">
+    <div class="section-header">
+      <h2 class="section-title">Medications</h2>
+      <span class="section-count" id="med-count">0 of 20</span>
+    </div>
+
+    <div id="med-search-block">
+      <label for="med-search">Search for a medication</label>
+      <div class="search-wrap">
+        <input type="text" id="med-search" placeholder="Start typing a drug name, e.g. Lipitor" autocomplete="off">
+        <div class="loading-inline" id="med-loading" style="display:none;">Searching…</div>
+        <div class="search-results" id="med-results"></div>
+      </div>
+      <p class="help-text">Can't find your medication? <a id="med-manual-toggle">Enter it manually</a></p>
+    </div>
+
+    <div id="med-strength-block" style="display:none; margin-top:14px;">
+      <label for="med-strength">Select strength &amp; form</label>
+      <select id="med-strength"></select>
+      <div class="rx-row" style="margin-top:10px;">
+        <div>
+          <label for="med-frequency">Frequency</label>
+          <select id="med-frequency">
+            <option value="Once daily">Once daily</option>
+            <option value="Twice daily">Twice daily</option>
+            <option value="Three times daily">Three times daily</option>
+            <option value="Four times daily">Four times daily</option>
+            <option value="Every other day">Every other day</option>
+            <option value="As needed">As needed</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="med-applicant">Who takes this? (optional)</label>
+          <input type="text" id="med-applicant" placeholder="e.g. John Smith" autocomplete="off">
+        </div>
+      </div>
+      <div class="actions-right">
+        <button type="button" id="med-cancel">Cancel</button>
+        <button type="button" class="primary" id="med-add">Add medication</button>
+      </div>
+    </div>
+
+    <div id="med-manual-block" class="manual-entry-box" style="display:none;">
+      <h4>Manual medication entry</h4>
+      <div class="field-group single">
+        <div>
+          <label>Medication name</label>
+          <input type="text" id="med-manual-name" placeholder="e.g. Compounded hormone cream">
+        </div>
+      </div>
+      <div class="field-group">
+        <div>
+          <label>Strength (optional)</label>
+          <input type="text" id="med-manual-strength" placeholder="e.g. 10 mg">
+        </div>
+        <div>
+          <label>Form (optional)</label>
+          <input type="text" id="med-manual-form" placeholder="e.g. tablet, cream">
+        </div>
+      </div>
+      <div class="field-group">
+        <div>
+          <label>Frequency</label>
+          <select id="med-manual-frequency">
+            <option value="Once daily">Once daily</option>
+            <option value="Twice daily">Twice daily</option>
+            <option value="Three times daily">Three times daily</option>
+            <option value="Four times daily">Four times daily</option>
+            <option value="Every other day">Every other day</option>
+            <option value="As needed">As needed</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="med-manual-applicant">Who takes this? (optional)</label>
+          <input type="text" id="med-manual-applicant" placeholder="e.g. John Smith" autocomplete="off">
+        </div>
+      </div>
+      <div class="actions-right">
+        <button type="button" id="med-manual-cancel">Cancel</button>
+        <button type="button" class="primary" id="med-manual-add">Add medication</button>
+      </div>
+    </div>
+
+    <div class="items-list" id="med-list"></div>
+  </div>
+
+  <!-- Fallback placeholders so the widget still syncs when used standalone. -->
+  <input type="hidden" name="medications_json">
+  <input type="hidden" name="medications_summary">
+</div>`;
+
+  // ---- widget logic ----
+  (function widgetMain() {
+// ============================================================
+// CONFIG
+// ============================================================
+const MAX_MEDS = 20;
+const DEBOUNCE_MS = 300;
+const RX_BASE = 'https://rxnav.nlm.nih.gov/REST';
+
+// Output field-key mapping. Each output is written to the GHL field whose clean
+// key matches — the field's Unique Key, surfaced as the input name= (and data-q)
+// on the rendered form. We match by clean key only, with NO hardcoded field IDs,
+// so this widget is snapshot-portable: drop it into any sub-account whose form
+// has fields with these keys and it connects automatically.
+// Override via window.MEDS_CONFIG = { fieldKeys: { medications_summary: [...] } }.
+const FIELD_KEYS = Object.assign({
+  medications_json:    ['medications_json'],
+  medications_summary: ['medications_summary']
+}, (typeof window !== 'undefined' && window.MEDS_CONFIG && window.MEDS_CONFIG.fieldKeys) || {});
+
+// ============================================================
+// STATE
+// ============================================================
+const state = { medications: [], medPending: null };
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ============================================================
+// MEDICATION SEARCH (RxNorm)
+// ============================================================
+async function searchMedications(query) {
+  if (!query || query.length < 2) return [];
+  try {
+    const url = `${RX_BASE}/approximateTerm.json?term=${encodeURIComponent(query)}&maxEntries=8`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const candidates = (data.approximateGroup && data.approximateGroup.candidate) || [];
+    const seen = new Map();
+    for (const c of candidates) {
+      if (!c.rxcui) continue;
+      if (!seen.has(c.rxcui)) seen.set(c.rxcui, c);
+    }
+    const withNames = await Promise.all(Array.from(seen.values()).slice(0, 6).map(async c => {
+      if (c.name) return c;
+      try {
+        const nameRes = await fetch(`${RX_BASE}/rxcui/${c.rxcui}/property.json?propName=RxNorm%20Name`);
+        const nameData = await nameRes.json();
+        const props = nameData.propConceptGroup && nameData.propConceptGroup.propConcept;
+        return { ...c, name: (props && props[0] && props[0].propValue) || `RxCUI ${c.rxcui}` };
+      } catch { return { ...c, name: `RxCUI ${c.rxcui}` }; }
+    }));
+    return withNames;
+  } catch (e) {
+    console.error('RxNorm search failed:', e);
+    return [];
+  }
+}
+
+async function getDrugDetails(rxcui) {
+  try {
+    const url = `${RX_BASE}/rxcui/${rxcui}/allrelated.json`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const groups = (data.allRelatedGroup && data.allRelatedGroup.conceptGroup) || [];
+    const drugForms = [];
+    const brands = new Set();
+    for (const g of groups) {
+      if ((g.tty === 'SCD' || g.tty === 'SBD') && g.conceptProperties) {
+        for (const p of g.conceptProperties) drugForms.push({ rxcui: p.rxcui, name: p.name, type: g.tty });
+      }
+      if (g.tty === 'BN' && g.conceptProperties) {
+        for (const p of g.conceptProperties) brands.add(p.name);
+      }
+    }
+    const uniq = new Map();
+    for (const f of drugForms) {
+      const key = f.name.toLowerCase().replace(/^\[brand\]/, '').trim();
+      if (!uniq.has(key)) uniq.set(key, f);
+    }
+    return { strengthOptions: Array.from(uniq.values()), brandNames: Array.from(brands) };
+  } catch (e) {
+    console.error('RxNorm details failed:', e);
+    return { strengthOptions: [], brandNames: [] };
+  }
+}
+
+async function getNdcForRxcui(rxcui) {
+  try {
+    const url = `${RX_BASE}/rxcui/${rxcui}/ndcs.json`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const ndcs = (data.ndcGroup && data.ndcGroup.ndcList && data.ndcGroup.ndcList.ndc) || [];
+    return ndcs[0] || null;
+  } catch (e) { return null; }
+}
+
+function parseDrugName(name) {
+  const strengthMatch = name.match(/(\d+(?:\.\d+)?)\s*(MG|MCG|ML|G|%|UNIT)/i);
+  const strength = strengthMatch ? `${strengthMatch[1]} ${strengthMatch[2].toLowerCase()}` : null;
+  const formPatterns = ['Tablet', 'Capsule', 'Injection', 'Solution', 'Suspension',
+                        'Cream', 'Ointment', 'Patch', 'Inhaler', 'Syrup', 'Drops',
+                        'Suppository', 'Gel', 'Spray'];
+  let dosageForm = null;
+  for (const p of formPatterns) {
+    if (name.toLowerCase().includes(p.toLowerCase())) { dosageForm = p.toLowerCase(); break; }
+  }
+  return { strength, dosageForm };
+}
+
+// ============================================================
+// MEDICATION UI
+// ============================================================
+const medSearchInput = document.getElementById('med-search');
+const medResults = document.getElementById('med-results');
+const medLoading = document.getElementById('med-loading');
+const medStrengthBlock = document.getElementById('med-strength-block');
+const medStrengthSelect = document.getElementById('med-strength');
+const medManualBlock = document.getElementById('med-manual-block');
+const medSearchBlock = document.getElementById('med-search-block');
+
+const runMedSearch = debounce(async (q) => {
+  if (!q || q.length < 2) {
+    medResults.classList.remove('open');
+    medLoading.style.display = 'none';
+    return;
+  }
+  medLoading.style.display = 'block';
+  const results = await searchMedications(q);
+  medLoading.style.display = 'none';
+
+  if (results.length === 0) {
+    medResults.innerHTML = '<div class="result-empty">No matches found. <a id="med-no-match-manual">Enter manually</a></div>';
+    medResults.classList.add('open');
+    document.getElementById('med-no-match-manual').onclick = () => {
+      medResults.classList.remove('open');
+      showMedManualEntry();
+    };
+    return;
+  }
+
+  medResults.innerHTML = results.map(r => `
+    <div class="result-item" data-rxcui="${escapeHtml(r.rxcui)}" data-name="${escapeHtml(r.name || '')}">
+      <div class="name">${escapeHtml(r.name || 'Unknown')}</div>
+      <div class="meta">RxCUI: ${escapeHtml(r.rxcui)}</div>
+    </div>
+  `).join('');
+  medResults.classList.add('open');
+
+  medResults.querySelectorAll('.result-item').forEach(el => {
+    el.onclick = () => selectMedication(el.dataset.rxcui, el.dataset.name);
+  });
+}, DEBOUNCE_MS);
+
+medSearchInput.addEventListener('input', (e) => runMedSearch(e.target.value.trim()));
+
+document.addEventListener('click', (e) => {
+  if (!medSearchInput.contains(e.target) && !medResults.contains(e.target)) {
+    medResults.classList.remove('open');
+  }
+});
+
+async function selectMedication(rxcui, name) {
+  medResults.classList.remove('open');
+  medSearchInput.value = name;
+  medLoading.style.display = 'block';
+
+  const details = await getDrugDetails(rxcui);
+  medLoading.style.display = 'none';
+
+  if (details.strengthOptions.length === 0) {
+    state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: [{ rxcui, name, type: 'BASE' }] };
+  } else {
+    state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: details.strengthOptions };
+  }
+
+  medStrengthSelect.innerHTML = state.medPending.strengthOptions
+    .map((s, i) => `<option value="${i}">${escapeHtml(s.name)}</option>`)
+    .join('');
+
+  medStrengthBlock.style.display = 'block';
+  medSearchBlock.style.display = 'none';
+}
+
+document.getElementById('med-cancel').onclick = () => resetMedSearch();
+
+document.getElementById('med-add').onclick = async () => {
+  if (!state.medPending) return;
+  const idx = parseInt(medStrengthSelect.value, 10);
+  const selected = state.medPending.strengthOptions[idx];
+  const parsed = parseDrugName(selected.name);
+  const frequency = document.getElementById('med-frequency').value;
+  const applicant_name = document.getElementById('med-applicant').value.trim() || null;
+
+  const ndc = await getNdcForRxcui(selected.rxcui);
+
+  const isBranded = selected.type === 'SBD';
+  const entry = {
+    id: `med_${Date.now()}`,
+    name: isBranded ? state.medPending.name : selected.name.split(/\s+\d/)[0].trim(),
+    brand_name: isBranded ? state.medPending.name : (state.medPending.brand_name || null),
+    strength: parsed.strength,
+    dosage_form: parsed.dosageForm,
+    frequency,
+    applicant_name,
+    rxcui: selected.rxcui,
+    ndc,
+    source: 'rxnorm',
+    display_name: selected.name
+  };
+
+  state.medications.push(entry);
+  renderMedications();
+  resetMedSearch();
+};
+
+function resetMedSearch() {
+  state.medPending = null;
+  medSearchInput.value = '';
+  document.getElementById('med-applicant').value = '';
+  medStrengthBlock.style.display = 'none';
+  medSearchBlock.style.display = 'block';
+  medManualBlock.style.display = 'none';
+}
+
+function showMedManualEntry() {
+  medSearchBlock.style.display = 'none';
+  medStrengthBlock.style.display = 'none';
+  medManualBlock.style.display = 'block';
+}
+
+document.getElementById('med-manual-toggle').onclick = (e) => { e.preventDefault(); showMedManualEntry(); };
+document.getElementById('med-manual-cancel').onclick = resetMedSearch;
+
+document.getElementById('med-manual-add').onclick = () => {
+  const name = document.getElementById('med-manual-name').value.trim();
+  if (!name) { alert('Medication name is required.'); return; }
+  const entry = {
+    id: `med_${Date.now()}`,
+    name,
+    brand_name: null,
+    strength: document.getElementById('med-manual-strength').value.trim() || null,
+    dosage_form: document.getElementById('med-manual-form').value.trim() || null,
+    frequency: document.getElementById('med-manual-frequency').value,
+    applicant_name: document.getElementById('med-manual-applicant').value.trim() || null,
+    rxcui: null,
+    ndc: null,
+    source: 'manual',
+    display_name: name
+  };
+  state.medications.push(entry);
+  ['med-manual-name','med-manual-strength','med-manual-form','med-manual-applicant'].forEach(id => document.getElementById(id).value = '');
+  renderMedications();
+  resetMedSearch();
+};
+
+function renderMedications() {
+  const list = document.getElementById('med-list');
+  const count = state.medications.length;
+  document.getElementById('med-count').textContent = `${count} of ${MAX_MEDS}`;
+
+  list.innerHTML = state.medications.map(m => {
+    const parts = [];
+    if (m.brand_name && m.brand_name.toLowerCase() !== m.name.toLowerCase()) {
+      parts.push(`${escapeHtml(m.name)} (${escapeHtml(m.brand_name)})`);
+    } else {
+      parts.push(escapeHtml(m.name));
+    }
+    if (m.strength) parts.push(escapeHtml(m.strength));
+    if (m.dosage_form) parts.push(escapeHtml(m.dosage_form));
+    const manualBadge = m.source === 'manual' ? '<span class="item-card-badge">Manual</span>' : '';
+    const metaParts = [escapeHtml(m.frequency)];
+    if (m.applicant_name) metaParts.push(`for ${escapeHtml(m.applicant_name)}`);
+    return `
+      <div class="item-card ${m.source === 'manual' ? 'manual' : ''}">
+        <div class="item-card-main">
+          <div class="item-card-name">${parts.join(' ')}${manualBadge}</div>
+          <div class="item-card-meta">${metaParts.join(' · ')}</div>
+        </div>
+        <button class="danger-text" data-remove-med="${m.id}">Remove</button>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-remove-med]').forEach(btn => {
+    btn.onclick = () => {
+      state.medications = state.medications.filter(m => m.id !== btn.dataset.removeMed);
+      renderMedications();
+    };
+  });
+
+  if (count >= MAX_MEDS) {
+    medSearchBlock.style.display = 'none';
+    medStrengthBlock.style.display = 'none';
+    medManualBlock.style.display = 'none';
+  } else if (!state.medPending && medManualBlock.style.display === 'none') {
+    medSearchBlock.style.display = 'block';
+  }
+
+  syncHiddenFields();
+}
+
+// ============================================================
+// JSON + SUMMARY BUILDERS
+// ============================================================
+function buildMedicationsJson() {
+  return JSON.stringify({
+    version: '1.0',
+    count: state.medications.length,
+    items: state.medications.map(m => ({
+      id: m.id, name: m.name, brand_name: m.brand_name,
+      strength: m.strength, dosage_form: m.dosage_form, frequency: m.frequency,
+      applicant_name: m.applicant_name || null,
+      rxcui: m.rxcui, ndc: m.ndc, source: m.source
+    }))
+  });
+}
+
+function buildMedicationsSummary() {
+  if (state.medications.length === 0) return '';
+  const lines = [`MEDICATIONS (${state.medications.length})`, ''];
+  for (const m of state.medications) {
+    const parts = [];
+    if (m.brand_name && m.brand_name.toLowerCase() !== m.name.toLowerCase()) parts.push(`${m.name} (${m.brand_name})`);
+    else parts.push(m.name);
+    if (m.strength) parts.push(m.strength);
+    if (m.dosage_form) parts.push(m.dosage_form);
+    let line = `• ${parts.join(' ')} — ${m.frequency}`;
+    if (m.applicant_name) line += ` (for ${m.applicant_name})`;
+    if (m.source === 'manual') line += ' [manually entered]';
+    lines.push(line);
+  }
+  return lines.join('\n');
+}
+
+function syncHiddenFields() {
+  const setAll = (keys, value) => {
+    for (const key of (Array.isArray(keys) ? keys : [keys])) {
+      if (!key) continue;
+      const selector = `[name="${key}"], [data-q="${key}"]`;
+      document.querySelectorAll(selector).forEach(el => {
+        el.value = value;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    }
+  };
+  setAll(FIELD_KEYS.medications_json,    buildMedicationsJson());
+  setAll(FIELD_KEYS.medications_summary, buildMedicationsSummary());
+}
+
+// ============================================================
+// PRIMARY COLOR INHERITANCE
+// ------------------------------------------------------------
+// Resolution order (first valid wins):
+//   1. window.<WIDGET>_CONFIG.primaryColor — explicit JS override
+//   2. data-primary-color on the container. In GHL set this to the literal
+//      {{custom_values.brand_primary_color}} — GHL substitutes the account's
+//      brand color server-side (works on both forms and surveys).
+//   3. Auto-detect: GHL form submit-button bg, then survey Next-button color.
+//   4. Fallback: the widget's default --accent (#1e4d8c).
+// Unresolved {{...}} merge tags are ignored (see isValidColor).
+// ============================================================
+function isValidColor(v) {
+  if (!v || typeof v !== 'string') return false;
+  const s = v.trim();
+  if (!s) return false;
+  if (s.includes('{{') || s.includes('}}')) return false;
+  return /^#[0-9a-f]{3,8}$/i.test(s) || /^rgba?\(/i.test(s);
+}
+
+function applyPrimaryColor() {
+  const widget = document.getElementById('medications-lookup-widget');
+  if (!widget) return;
+  let color = null;
+  if (typeof window !== 'undefined' && window.MEDS_CONFIG && isValidColor(window.MEDS_CONFIG.primaryColor)) {
+    color = window.MEDS_CONFIG.primaryColor;
+  } else if (widget.dataset && isValidColor(widget.dataset.primaryColor)) {
+    color = widget.dataset.primaryColor;
+  } else {
+    // No explicit color set — auto-detect the host's brand color.
+    // Form-style: GHL forms put the brand color inline on the submit button bg.
+    const formBtn = document.querySelector('button[type="submit"]');
+    if (formBtn && isValidColor(formBtn.style.backgroundColor)) {
+      color = formBtn.style.backgroundColor;
+    }
+    // Survey-style: the footer Next/Submit button. Prefer a filled background,
+    // else fall back to the (brand-colored) text color GHL uses by default.
+    if (!color) {
+      const surveyBtn = document.querySelector(
+        '.ghl-footer-next, .ghl-footer-previous, .ghl-footer-preview, .ghl-footer .ghl-btn'
+      );
+      if (surveyBtn) {
+        const s = getComputedStyle(surveyBtn);
+        const transparent = ['rgba(0, 0, 0, 0)', 'transparent', ''];
+        const skipColors = [
+          'rgb(0, 0, 0)', 'rgba(0, 0, 0, 0)', 'rgb(96, 113, 121)',
+          'rgb(255, 255, 255)', 'rgba(255, 255, 255, 1)'
+        ];
+        const bg = s.backgroundColor;
+        const fg = s.color;
+        if (bg && !transparent.includes(bg) && !skipColors.includes(bg)) {
+          color = bg;
+        } else if (fg && !skipColors.includes(fg) && isValidColor(fg)) {
+          color = fg;
+        }
+      }
+    }
+  }
+  if (!color) return;
+  const hex8 = color.match(/^#([0-9a-f]{8})$/i);
+  if (hex8) color = '#' + hex8[1].substring(0, 6);
+  widget.style.setProperty('--accent', color);
+  widget.style.setProperty('--accent-hover', darken(color, 0.12));
+}
+
+function darken(color, amount) {
+  let r, g, b;
+  const hex = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  const rgb = color.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+  if (hex) {
+    const h = hex[1].length === 3 ? hex[1].split('').map(c => c + c).join('') : hex[1];
+    r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+  } else if (rgb) { r = +rgb[1]; g = +rgb[2]; b = +rgb[3]; } else { return color; }
+  const d = v => Math.max(0, Math.round(v * (1 - amount))).toString(16).padStart(2, '0');
+  return '#' + d(r) + d(g) + d(b);
+}
+
+applyPrimaryColor();
+renderMedications();
+  })();
+})();
