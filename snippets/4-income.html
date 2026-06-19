@@ -1,0 +1,13 @@
+<!-- =====================================================================
+     4 · INCOME SOURCES
+     Paste this whole block into ONE GHL Custom Code / HTML element,
+     inside the form or survey, on the same step as the fields below.
+     Writes to clean keys:  income_json , income_summary , household_income
+     (household_income is auto-totaled; only written when >=1 source exists)
+     ===================================================================== -->
+<div id="income-sources-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.0.1/dist/embed-income.js"></script>
+
+<!-- Fallback CDN — use ONLY if the widget doesn't appear (jsDelivr warming).
+     Replace the <script> line above with this one; do NOT include both:
+     <script src="https://rawcdn.githack.com/maxmethod/doc-rx-lookup/v2.0.1/dist/embed-income.js"></script> -->
