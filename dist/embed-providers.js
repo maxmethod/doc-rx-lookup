@@ -255,6 +255,12 @@ const state = {
   zipDatasetPromise: null
 };
 
+// Gates the very first (bootstrap) sync. We hydrate state from any existing
+// field value, then paint once WITHOUT writing back, so a prefilled field is
+// never clobbered by the empty initial render. Flipped true after bootstrap;
+// every user-driven render thereafter syncs normally (append, not replace).
+let syncReady = false;
+
 // ============================================================
 // UTILITIES
 // ============================================================
@@ -647,6 +653,7 @@ function buildProvidersSummary() {
 }
 
 function syncHiddenFields() {
+  if (!syncReady) return; // skip the bootstrap write so hydrate can't be clobbered
   const setAll = (keys, value) => {
     for (const key of (Array.isArray(keys) ? keys : [keys])) {
       if (!key) continue;
@@ -739,7 +746,62 @@ function darken(color, amount) {
   return '#' + d(r) + d(g) + d(b);
 }
 
+// ============================================================
+// HYDRATE — seed state from an existing field so selections APPEND
+// ------------------------------------------------------------
+// Reads the providers_json we previously wrote (round-trip safe), so a contact
+// re-entering the funnel keeps their prior doctors instead of losing them. Bad
+// or empty values are ignored. Dedups so a reload can't double an entry.
+// ============================================================
+function readFieldValue(keys) {
+  // Scan ALL matches and return the first NON-EMPTY value. The widget injects its
+  // own empty <input name="providers_json"> mirror, which is first in document
+  // order — skipping empties lets us read GHL's prefilled [data-q] field instead.
+  for (const key of (Array.isArray(keys) ? keys : [keys])) {
+    if (!key) continue;
+    const els = document.querySelectorAll(`[name="${key}"], [data-q="${key}"]`);
+    for (const el of els) {
+      if (el && el.value && el.value.trim()) return el.value;
+    }
+  }
+  return '';
+}
+
+function hydrateFromField() {
+  try {
+    const raw = readFieldValue(FIELD_KEYS.providers_json);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    const items = parsed && Array.isArray(parsed.items) ? parsed.items : null;
+    if (!items) return;
+    const keyOf = p => [p.npi, p.full_name, p.address && p.address.city, p.address && p.address.state].join('|');
+    const seen = new Set(state.providers.map(keyOf));
+    items.forEach((it, i) => {
+      if (!it) return;
+      const p = {
+        id: String(it.id != null ? it.id : 'hydrated-' + i),
+        full_name: it.full_name || [it.first_name, it.last_name].filter(Boolean).join(' '),
+        first_name: it.first_name || null,
+        last_name: it.last_name || null,
+        npi: it.npi || null,
+        specialty: it.specialty || null,
+        provider_type: it.provider_type || 'Provider',
+        address: it.address && typeof it.address === 'object' ? it.address : {},
+        source: it.source || 'lookup'
+      };
+      if (!p.full_name) return;
+      const k = keyOf(p);
+      if (seen.has(k)) return;
+      seen.add(k);
+      state.providers.push(p);
+    });
+    if (state.providers.length > MAX_PROVIDERS) state.providers.length = MAX_PROVIDERS;
+  } catch (e) { /* ignore malformed existing value */ }
+}
+
 applyPrimaryColor();
+hydrateFromField();
 renderProviders();
+syncReady = true;
   })();
 })();

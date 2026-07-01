@@ -286,6 +286,12 @@ const FIELD_KEYS = Object.assign({
 // ============================================================
 const state = { medications: [], medPending: null };
 
+// Gates the very first (bootstrap) sync. We hydrate state from any existing
+// field value, then paint once WITHOUT writing back, so a prefilled field is
+// never clobbered by the empty initial render. Flipped true after bootstrap;
+// every user-driven render thereafter syncs normally (append, not replace).
+let syncReady = false;
+
 // ============================================================
 // UTILITIES
 // ============================================================
@@ -609,6 +615,7 @@ function buildMedicationsSummary() {
 }
 
 function syncHiddenFields() {
+  if (!syncReady) return; // skip the bootstrap write so hydrate can't be clobbered
   const setAll = (keys, value) => {
     for (const key of (Array.isArray(keys) ? keys : [keys])) {
       if (!key) continue;
@@ -701,8 +708,63 @@ function darken(color, amount) {
   return '#' + d(r) + d(g) + d(b);
 }
 
+// ============================================================
+// HYDRATE — seed state from an existing field so selections APPEND
+// ------------------------------------------------------------
+// Reads the medications_json we previously wrote (round-trip safe), so a contact
+// re-entering the funnel keeps their prior drugs instead of losing them. Bad or
+// empty values are ignored. Dedups so a reload can't double an entry.
+// ============================================================
+function readFieldValue(keys) {
+  // Scan ALL matches and return the first NON-EMPTY value. The widget injects its
+  // own empty <input name="medications_json"> mirror, which is first in document
+  // order — skipping empties lets us read GHL's prefilled [data-q] field instead.
+  for (const key of (Array.isArray(keys) ? keys : [keys])) {
+    if (!key) continue;
+    const els = document.querySelectorAll(`[name="${key}"], [data-q="${key}"]`);
+    for (const el of els) {
+      if (el && el.value && el.value.trim()) return el.value;
+    }
+  }
+  return '';
+}
+
+function hydrateFromField() {
+  try {
+    const raw = readFieldValue(FIELD_KEYS.medications_json);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    const items = parsed && Array.isArray(parsed.items) ? parsed.items : null;
+    if (!items) return;
+    const keyOf = m => [m.rxcui, m.name, m.strength, m.dosage_form, m.applicant_name].join('|');
+    const seen = new Set(state.medications.map(keyOf));
+    items.forEach((it, i) => {
+      if (!it || !it.name) return;
+      const m = {
+        id: String(it.id != null ? it.id : 'hydrated-' + i),
+        name: it.name,
+        brand_name: it.brand_name || null,
+        strength: it.strength || null,
+        dosage_form: it.dosage_form || null,
+        frequency: it.frequency || 'As directed',
+        applicant_name: it.applicant_name || null,
+        rxcui: it.rxcui || null,
+        ndc: it.ndc || null,
+        source: it.source || 'lookup'
+      };
+      const k = keyOf(m);
+      if (seen.has(k)) return;
+      seen.add(k);
+      state.medications.push(m);
+    });
+    if (state.medications.length > MAX_MEDS) state.medications.length = MAX_MEDS;
+  } catch (e) { /* ignore malformed existing value */ }
+}
+
 applyPrimaryColor();
+hydrateFromField();
 renderMedications();
+syncReady = true;
 </script>
 </body>
 </html>

@@ -19,6 +19,28 @@ Each is a **separate embed** with a distinct container id / config global / load
 
 > **Legacy:** `rx-provider-lookup.html` → `dist/embed.js` is the original *combined* doctor+Rx widget (container `rx-lookup-widget`). It is kept for backward-compat with any page already embedding it; new work should use the four split widgets above. `scripts/build-embed.js` builds only the split widgets — the legacy `dist/embed.js` is frozen.
 
+## Re-entry: widgets append, they don't overwrite
+
+Since **v2.1.0**, each widget **hydrates** from its own `_json` field on load. If a
+contact re-enters the funnel with a value already in the field (e.g. GHL prefill for a
+known contact), the widget reads it, shows those entries in the UI, and **appends** new
+selections instead of replacing them. Round-trip safe (it reads the same `_json` it
+writes) and de-duplicated on load.
+
+Two safeguards protect existing data:
+
+- **No empty-clobber at load.** The initial render never writes back, so a prefilled or
+  unparseable field is left intact instead of being stamped with an empty payload. Only a
+  real user edit (add/remove) writes to the field thereafter.
+- **Income `household_income`** is additionally never overwritten until the user edits an
+  income source; then it re-derives from the full (hydrated + new) set.
+
+> Hydration can only recover what GHL actually renders **into the field on the page** —
+> which requires prefill to be enabled for a known contact on that form/survey step. If
+> prefill is off, the field is empty on the page and there is nothing to append to (no
+> data is lost either way — the no-empty-clobber guard prevents a blank submit from
+> erasing the stored value).
+
 ## Brand color — driven by a GHL custom value
 
 Set `data-primary-color` on the container to the literal merge tag **`{{custom_values.brand_primary_color}}`**. GHL substitutes the account's brand color server-side (works on forms and surveys). Resolution order (first valid wins):

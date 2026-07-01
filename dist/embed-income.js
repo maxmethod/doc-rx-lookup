@@ -218,6 +218,12 @@ const state = {
   income: []   // { id, income_type, source_name, amount, frequency, who_earns }
 };
 
+// Gates the very first (bootstrap) sync. We hydrate state from any existing
+// field value, then paint once WITHOUT writing back, so a prefilled field is
+// never clobbered by the empty initial render. Flipped true after bootstrap;
+// every user-driven render thereafter syncs normally (append, not replace).
+let syncReady = false;
+
 // ============================================================
 // UTILITIES
 // ============================================================
@@ -375,6 +381,7 @@ function buildHouseholdTotal() {
 }
 
 function syncHiddenFields() {
+  if (!syncReady) return; // skip the bootstrap write so hydrate can't be clobbered
   const setAll = (keys, value) => {
     for (const key of (Array.isArray(keys) ? keys : [keys])) {
       if (!key) continue;
@@ -470,7 +477,59 @@ function darken(color, amount) {
   return '#' + d(r) + d(g) + d(b);
 }
 
+// ============================================================
+// HYDRATE — seed state from an existing field so entries APPEND
+// ------------------------------------------------------------
+// Reads the income_json we previously wrote (round-trip safe), so a contact
+// re-entering the funnel keeps prior income sources instead of losing them. Bad
+// or empty values are ignored. Dedups so a reload can't double an entry. The
+// household_income total re-derives from the merged set on the next user edit.
+// ============================================================
+function readFieldValue(keys) {
+  // Scan ALL matches and return the first NON-EMPTY value. The widget injects its
+  // own empty <input name="income_json"> mirror, which is first in document
+  // order — skipping empties lets us read GHL's prefilled [data-q] field instead.
+  for (const key of (Array.isArray(keys) ? keys : [keys])) {
+    if (!key) continue;
+    const els = document.querySelectorAll(`[name="${key}"], [data-q="${key}"]`);
+    for (const el of els) {
+      if (el && el.value && el.value.trim()) return el.value;
+    }
+  }
+  return '';
+}
+
+function hydrateFromField() {
+  try {
+    const raw = readFieldValue(FIELD_KEYS.income_json);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    const items = parsed && Array.isArray(parsed.items) ? parsed.items : null;
+    if (!items) return;
+    const keyOf = r => [r.income_type, r.source_name, r.amount, r.frequency, r.who_earns].join('|');
+    const seen = new Set(state.income.map(keyOf));
+    items.forEach((it, i) => {
+      if (!it || it.amount == null) return;
+      const r = {
+        id: String(it.id != null ? it.id : 'hydrated-' + i),
+        income_type: it.income_type || 'Other',
+        source_name: it.source_name || '',
+        amount: Number(it.amount) || 0,
+        frequency: it.frequency || 'Annual',
+        who_earns: it.who_earns || null
+      };
+      const k = keyOf(r);
+      if (seen.has(k)) return;
+      seen.add(k);
+      state.income.push(r);
+    });
+    if (state.income.length > MAX_INCOME) state.income.length = MAX_INCOME;
+  } catch (e) { /* ignore malformed existing value */ }
+}
+
 applyPrimaryColor();
+hydrateFromField();
 renderIncome();
+syncReady = true;
   })();
 })();
