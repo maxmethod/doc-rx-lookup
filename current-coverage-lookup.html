@@ -490,9 +490,31 @@ function readFieldValue(keys) {
   return '';
 }
 
+// Fallback hydration seed for RETURNING contacts (option C). A GHL merge tag is
+// resolved SERVER-SIDE into either a JS global or the container's data-initial-*
+// attribute, so the contact's stored value is carried in WITHOUT putting PHI in
+// the URL. Unresolved {{...}} tags and empty values are ignored (widget falls
+// through to normal empty state). Set ONE of, on the embed page:
+//   window.COVERAGE_CONFIG = { initialCoverage: '{{ contact.custom.current_coverage_json }}' }
+//   <div id="coverage-lookup-widget" data-initial-coverage="{{ contact.custom.current_coverage_json }}">
+function readInitialSeed() {
+  const clean = v => {
+    if (typeof v !== 'string') return '';
+    const s = v.trim();
+    if (!s || s.indexOf('{{') !== -1 || s.indexOf('}}') !== -1) return '';
+    return s;
+  };
+  const cfg = (typeof window !== 'undefined' && window.COVERAGE_CONFIG) || {};
+  let s = clean(cfg.initialCoverage);
+  if (s) return s;
+  const el = document.getElementById('coverage-lookup-widget');
+  if (el) s = clean(el.getAttribute('data-initial-coverage'));
+  return s;
+}
+
 function hydrateFromField() {
   try {
-    const raw = readFieldValue(FIELD_KEYS.current_coverage_json);
+    const raw = readFieldValue(FIELD_KEYS.current_coverage_json) || readInitialSeed();
     if (!raw) return;
     const parsed = JSON.parse(raw);
     const items = parsed && Array.isArray(parsed.items) ? parsed.items : null;

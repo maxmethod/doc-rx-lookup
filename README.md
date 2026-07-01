@@ -35,11 +35,35 @@ Two safeguards protect existing data:
 - **Income `household_income`** is additionally never overwritten until the user edits an
   income source; then it re-derives from the full (hydrated + new) set.
 
-> Hydration can only recover what GHL actually renders **into the field on the page** —
-> which requires prefill to be enabled for a known contact on that form/survey step. If
-> prefill is off, the field is empty on the page and there is nothing to append to (no
-> data is lost either way — the no-empty-clobber guard prevents a blank submit from
+> Native hydration can only recover what GHL actually renders **into the field on the
+> page** — which requires prefill to be enabled for a known contact on that form/survey
+> step. If prefill is off, the field is empty on the page and there is nothing to append
+> to (no data is lost either way — the no-empty-clobber guard prevents a blank submit from
 > erasing the stored value).
+
+### Returning-contact seed (v2.2.0) — carry the value without the URL
+
+GHL **sticky contact does not prefill custom fields** (standard fields only), and putting
+these `_json` blobs (doctor/Rx/income = PHI) in a URL query string is unsafe (length +
+history/logs/`Referer` leakage). So as of **v2.2.0** each widget also accepts a
+**hydration seed** resolved by a GHL merge tag **server-side into the page** — never the
+URL. On load the widget reads the on-page field first, and if empty falls back to the seed.
+
+Set **either** form on the embed page (unresolved `{{...}}` and empty values are ignored):
+
+| Widget | Config global | Container attribute |
+| --- | --- | --- |
+| Providers | `window.PROV_CONFIG = { initialProviders: '{{ contact.custom.providers_json }}' }` | `data-initial-providers="{{ contact.custom.providers_json }}"` |
+| Medications | `window.MEDS_CONFIG = { initialMedications: '{{ contact.custom.medications_json }}' }` | `data-initial-medications="{{ contact.custom.medications_json }}"` |
+| Coverage | `window.COVERAGE_CONFIG = { initialCoverage: '{{ contact.custom.current_coverage_json }}' }` | `data-initial-coverage="{{ contact.custom.current_coverage_json }}"` |
+| Income | `window.INCOME_CONFIG = { initialIncome: '{{ contact.custom.income_json }}' }` | `data-initial-income="{{ contact.custom.income_json }}"` |
+
+> **Verify per surface before relying on it:** confirm the sub-account actually substitutes
+> `{{ contact.custom.<key> }}` inside a Custom-Code block (the exact merge syntax — with or
+> without the `.custom.` namespace — can vary; use the merge-field picker). If it doesn't
+> resolve, the guard ignores it and the widget behaves exactly as v2.1.0. Also note: a raw
+> apostrophe in the data (e.g. a doctor named `O'Brien`) can break a single-quoted JS global
+> — the `data-initial-*` attribute form is more robust to quoting, so prefer it if unsure.
 
 ## Brand color — driven by a GHL custom value
 

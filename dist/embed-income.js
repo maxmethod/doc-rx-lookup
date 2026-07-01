@@ -499,9 +499,31 @@ function readFieldValue(keys) {
   return '';
 }
 
+// Fallback hydration seed for RETURNING contacts (option C). A GHL merge tag is
+// resolved SERVER-SIDE into either a JS global or the container's data-initial-*
+// attribute, so the contact's stored value is carried in WITHOUT putting PHI in
+// the URL. Unresolved {{...}} tags and empty values are ignored (widget falls
+// through to normal empty state). Set ONE of, on the embed page:
+//   window.INCOME_CONFIG = { initialIncome: '{{ contact.custom.income_json }}' }
+//   <div id="income-sources-widget" data-initial-income="{{ contact.custom.income_json }}">
+function readInitialSeed() {
+  const clean = v => {
+    if (typeof v !== 'string') return '';
+    const s = v.trim();
+    if (!s || s.indexOf('{{') !== -1 || s.indexOf('}}') !== -1) return '';
+    return s;
+  };
+  const cfg = (typeof window !== 'undefined' && window.INCOME_CONFIG) || {};
+  let s = clean(cfg.initialIncome);
+  if (s) return s;
+  const el = document.getElementById('income-sources-widget');
+  if (el) s = clean(el.getAttribute('data-initial-income'));
+  return s;
+}
+
 function hydrateFromField() {
   try {
-    const raw = readFieldValue(FIELD_KEYS.income_json);
+    const raw = readFieldValue(FIELD_KEYS.income_json) || readInitialSeed();
     if (!raw) return;
     const parsed = JSON.parse(raw);
     const items = parsed && Array.isArray(parsed.items) ? parsed.items : null;
