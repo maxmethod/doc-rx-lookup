@@ -2,40 +2,41 @@
      doc-rx-lookup — generic GHL embeds for the quote form/survey
      Paste each block into its own Custom Code / Custom HTML element.
      - Color comes from the account's {{custom_values.brand_primary_color}}.
-     - Pin @vX.Y.Z to a real tag (not @main). Use >= v2.2.0 for the seed.
+     - Pin @vX.Y.Z to a real tag (not @main). Use >= v2.3.0 for the seed.
      - Test on the PUBLISHED form/survey (GHL preview may not run <script>).
      - The page must also contain the matching custom fields as inputs
        (hidden is fine) — see SNAPSHOT-FIELDS.md.
 
-     OPTIONAL — returning-contact APPEND (v2.2.0), PHI stays OUT of the URL:
-     to seed the widget with a contact's previously-saved value, add the
-     data-initial-* attribute shown on each <div> (or set the matching
-     window.*_CONFIG.initial* global above the <script>). GHL resolves the
-     merge tag server-side into the page; unresolved {{...}} is ignored.
-     Verify the account substitutes {{ contact.custom.<key> }} inside a
-     Custom-Code block — exact syntax may vary; use the merge-field picker.
+     OPTIONAL — returning-contact APPEND (v2.3.0), PHI stays OUT of the URL:
+     the <script type="application/json" ...-seed> line carries the contact's
+     previously-saved value so the widget hydrates + appends instead of
+     replacing. GHL resolves the merge tag into the JSON script tag server-side
+     (quote-safe — a <script> text node can't break the HTML). Unresolved
+     {{...}} is ignored, so it is safe to leave in for new contacts too.
+     IMPORTANT: the seed <script> MUST sit BEFORE the embed <script> (it is read
+     at bootstrap). Do NOT nest <script> inside the <div> — keep them siblings.
+     REACH: {{ contact.custom.* }} on a funnel/survey resolves from the visitor's
+     local-storage of a PRIOR submission on that funnel (same browser) — it is
+     not a cross-device / server-side-by-identity lookup. Omit the seed line to
+     skip the feature entirely.
      ============================================================ -->
 
 <!-- Doctors / Providers  ->  providers_json, providers_summary -->
-<div id="provider-lookup-widget"
-     data-primary-color="{{custom_values.brand_primary_color}}"
-     data-initial-providers="{{ contact.custom.providers_json }}"></div>
+<div id="provider-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script type="application/json" id="provider-lookup-widget-seed">{{ contact.custom.providers_json }}</script>
 <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-providers.js"></script>
 
 <!-- Medications / Rx  ->  medications_json, medications_summary -->
-<div id="medications-lookup-widget"
-     data-primary-color="{{custom_values.brand_primary_color}}"
-     data-initial-medications="{{ contact.custom.medications_json }}"></div>
+<div id="medications-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script type="application/json" id="medications-lookup-widget-seed">{{ contact.custom.medications_json }}</script>
 <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-medications.js"></script>
 
 <!-- Current Coverage  ->  current_coverage_json, current_coverage_summary -->
-<div id="coverage-lookup-widget"
-     data-primary-color="{{custom_values.brand_primary_color}}"
-     data-initial-coverage="{{ contact.custom.current_coverage_json }}"></div>
+<div id="coverage-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script type="application/json" id="coverage-lookup-widget-seed">{{ contact.custom.current_coverage_json }}</script>
 <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-coverage.js"></script>
 
 <!-- Income Sources  ->  income_json, income_summary, household_income (auto-total) -->
-<div id="income-sources-widget"
-     data-primary-color="{{custom_values.brand_primary_color}}"
-     data-initial-income="{{ contact.custom.income_json }}"></div>
+<div id="income-sources-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script type="application/json" id="income-sources-widget-seed">{{ contact.custom.income_json }}</script>
 <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-income.js"></script>

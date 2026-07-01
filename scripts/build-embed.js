@@ -93,10 +93,14 @@ function build(widget) {
   if (!bodyMatch) throw new Error(`[${widget.label}] Could not find <body> block`);
   let body = bodyMatch[1].trim();
 
-  const scriptMatch = body.match(/<script>([\s\S]*?)<\/script>/);
+  // GREEDY match to the LAST </script> so a literal </script> inside a JS comment
+  // or string (e.g. documenting embed usage) can't truncate the extraction. The
+  // widget body must contain exactly one <script> block for this to be correct.
+  const scriptMatch = body.match(/<script>([\s\S]*)<\/script>/);
   if (!scriptMatch) throw new Error(`[${widget.label}] Could not find <script> block in body`);
   const js = scriptMatch[1].trim();
   body = body.replace(scriptMatch[0], '').trim();
+  if (/<script/i.test(body)) throw new Error(`[${widget.label}] Extra <script> found in markup after extraction — the widget must contain exactly ONE <script> block (a literal </script> in a comment/string can also trigger this).`);
 
   const embed = `/**
  * ${widget.label} embed bootstrap

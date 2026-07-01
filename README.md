@@ -41,29 +41,47 @@ Two safeguards protect existing data:
 > to (no data is lost either way — the no-empty-clobber guard prevents a blank submit from
 > erasing the stored value).
 
-### Returning-contact seed (v2.2.0) — carry the value without the URL
+### Returning-contact seed (v2.3.0) — carry the value without the URL
 
 GHL **sticky contact does not prefill custom fields** (standard fields only), and putting
 these `_json` blobs (doctor/Rx/income = PHI) in a URL query string is unsafe (length +
-history/logs/`Referer` leakage). So as of **v2.2.0** each widget also accepts a
-**hydration seed** resolved by a GHL merge tag **server-side into the page** — never the
-URL. On load the widget reads the on-page field first, and if empty falls back to the seed.
+history/logs/`Referer` leakage). So each widget also accepts a **hydration seed** resolved
+by a GHL merge tag **server-side into the page** — never the URL. On load the widget reads
+the on-page field first, and if empty falls back to the seed.
 
-Set **either** form on the embed page (unresolved `{{...}}` and empty values are ignored):
+**Wiring (v2.3.0): a sibling JSON `<script>` placed BEFORE the embed `<script>`.** The
+value lives in a `<script type="application/json">` text node, so the stored JSON's quotes
+can't break the HTML (the earlier `data-initial-*` attribute form did — GHL substitutes raw,
+un-encoded, so quote-laden JSON terminated the attribute and broke survey submit; that
+attribute path was **removed in v2.3.0**).
 
-| Widget | Config global | Container attribute |
+| Widget | Seed element (id) | Merge tag (text content) |
 | --- | --- | --- |
-| Providers | `window.PROV_CONFIG = { initialProviders: '{{ contact.custom.providers_json }}' }` | `data-initial-providers="{{ contact.custom.providers_json }}"` |
-| Medications | `window.MEDS_CONFIG = { initialMedications: '{{ contact.custom.medications_json }}' }` | `data-initial-medications="{{ contact.custom.medications_json }}"` |
-| Coverage | `window.COVERAGE_CONFIG = { initialCoverage: '{{ contact.custom.current_coverage_json }}' }` | `data-initial-coverage="{{ contact.custom.current_coverage_json }}"` |
-| Income | `window.INCOME_CONFIG = { initialIncome: '{{ contact.custom.income_json }}' }` | `data-initial-income="{{ contact.custom.income_json }}"` |
+| Providers | `provider-lookup-widget-seed` | `{{ contact.custom.providers_json }}` |
+| Medications | `medications-lookup-widget-seed` | `{{ contact.custom.medications_json }}` |
+| Coverage | `coverage-lookup-widget-seed` | `{{ contact.custom.current_coverage_json }}` |
+| Income | `income-sources-widget-seed` | `{{ contact.custom.income_json }}` |
 
-> **Verify per surface before relying on it:** confirm the sub-account actually substitutes
-> `{{ contact.custom.<key> }}` inside a Custom-Code block (the exact merge syntax — with or
-> without the `.custom.` namespace — can vary; use the merge-field picker). If it doesn't
-> resolve, the guard ignores it and the widget behaves exactly as v2.1.0. Also note: a raw
-> apostrophe in the data (e.g. a doctor named `O'Brien`) can break a single-quoted JS global
-> — the `data-initial-*` attribute form is more robust to quoting, so prefer it if unsure.
+```html
+<div id="provider-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
+<script type="application/json" id="provider-lookup-widget-seed">{{ contact.custom.providers_json }}</script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.3.0/dist/embed-providers.js"></script>
+```
+
+A `window.<CFG>.initial<Thing>` JS global is still read as a secondary override. Unresolved
+`{{...}}` and empty values are ignored — safe to leave in for new contacts.
+
+> **REACH (important):** on GHL funnel/survey pages `{{ contact.custom.* }}` resolves from
+> the visitor's **local-storage of a PRIOR submission on that funnel** (same browser) — it is
+> NOT a cross-device / server-side-by-identity lookup. So the seed restores + appends for a
+> contact returning **on the same device**; a cold email link on a new device won't carry the
+> value (and no native client-only mechanism can — that would need a backend lookup).
+>
+> **Verify per surface:** confirm the sub-account substitutes `{{ contact.custom.<key> }}`
+> inside a Custom-Code `<script>` (exact syntax — with/without the `.custom.` namespace — can
+> vary; use the merge-field picker). If it doesn't resolve, the guard ignores it and the widget
+> behaves exactly as v2.1.0. The seed `<script>` MUST sit before the embed `<script>` and must
+> not be nested inside the `<div>`.
 
 ## Brand color — driven by a GHL custom value
 

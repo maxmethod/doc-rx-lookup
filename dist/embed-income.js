@@ -499,13 +499,17 @@ function readFieldValue(keys) {
   return '';
 }
 
-// Fallback hydration seed for RETURNING contacts (option C). A GHL merge tag is
-// resolved SERVER-SIDE into either a JS global or the container's data-initial-*
-// attribute, so the contact's stored value is carried in WITHOUT putting PHI in
-// the URL. Unresolved {{...}} tags and empty values are ignored (widget falls
-// through to normal empty state). Set ONE of, on the embed page:
-//   window.INCOME_CONFIG = { initialIncome: '{{ contact.custom.income_json }}' }
-//   <div id="income-sources-widget" data-initial-income="{{ contact.custom.income_json }}">
+// Fallback hydration seed for RETURNING contacts (option C). GHL resolves a merge
+// tag into the page and the widget reads it WITHOUT putting PHI in the URL.
+// Unresolved {{...}} tags and empty values are ignored (falls through to empty).
+// Preferred wiring on the embed page = a sibling JSON script element with
+// type="application/json" and id="income-sources-widget-seed" whose text is
+// {{ contact.custom.income_json }}, placed BEFORE the embed script element.
+// (Quote-safe: JSON in a script text node can't break the HTML the way a data-*
+// attribute does — that attribute path was removed in v2.3.0.)
+// NOTE: on GHL funnel/survey pages {{ contact.custom.* }} resolves from the
+// visitor's local-storage of a PRIOR submission on that funnel (same browser) —
+// it is NOT a cross-device / server-side-by-identity lookup.
 function readInitialSeed() {
   const clean = v => {
     if (typeof v !== 'string') return '';
@@ -513,12 +517,15 @@ function readInitialSeed() {
     if (!s || s.indexOf('{{') !== -1 || s.indexOf('}}') !== -1) return '';
     return s;
   };
+  // Source 1 (PREFERRED, quote-safe): JSON inside a <script type="application/json"> tag.
+  const seedTag = document.getElementById('income-sources-widget-seed');
+  if (seedTag) {
+    const s = clean(seedTag.textContent);
+    if (s) return s;
+  }
+  // Source 2: explicit JS-global override.
   const cfg = (typeof window !== 'undefined' && window.INCOME_CONFIG) || {};
-  let s = clean(cfg.initialIncome);
-  if (s) return s;
-  const el = document.getElementById('income-sources-widget');
-  if (el) s = clean(el.getAttribute('data-initial-income'));
-  return s;
+  return clean(cfg.initialIncome);
 }
 
 function hydrateFromField() {
