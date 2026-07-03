@@ -1,35 +1,63 @@
 # doc-rx-lookup — Snapshot Rollout Handoff
 
-**Last updated:** 2026-07-01 (late night session)
+**Last updated:** 2026-07-03 (morning-prep session)
 **Current shipped version:** **`v2.3.0`** (live on jsDelivr, all 4 embeds 200 + byte-matched)
-**Repo:** `github.com/maxmethod/doc-rx-lookup` (main @ `472d53a`)
+**Repo:** `github.com/maxmethod/doc-rx-lookup` (main @ `d755943` — ⚠️ committed LOCAL, **not pushed**)
 
-Pick up here in the morning. TL;DR: the four widgets append instead of overwrite, and
-v2.3.0 adds a **quote-safe returning-contact seed**. The remaining work is GHL-side wiring +
-live validation (below).
+Pick up here first thing. **State:** the widgets are done (v2.3.0 — append + quote-safe
+returning-contact seed) and **Perfect Agency v4.0 is now fully provisioned** for them. Today's
+decision: build **net-new** form + survey (don't force existing contacts to shift over). The single
+sheet to build from is **[`V4.0-NEW-SURFACE-BUILD.md`](V4.0-NEW-SURFACE-BUILD.md)**; this file is the
+higher-level arc + reference.
 
 ---
 
-## ✅ Morning testing checklist (do these in order)
+## 🔜 First thing in the morning (do these in order)
 
-1. **Switch each survey/form to the new custom fields** (`providers_json`, `medications_json`,
-   `current_coverage_json`, `income_json`, + `_summary` variants, + `household_income`) instead
-   of the older native fields the widgets originally wrote to. Removes any overwrite collision.
-   Full list + types in [`SNAPSHOT-FIELDS.md`](SNAPSHOT-FIELDS.md).
-2. **Add the `_summary` fields (Large Text) to each step** alongside the `_json` fields.
-   Open item from tonight: summary wasn't populating live — almost certainly because only the
-   `_json` field was on the step, not `_summary`. The `_json` field is the real data; `_summary`
-   is the readable mirror.
-3. **Paste the v2.3.0 blocks** (see "Embed snippets" below) — pinned `@v2.3.0`, one Custom Code
-   element per widget, each with its own `<script type="application/json" ...-seed>` line.
-4. **Same-browser return test:** as a contact who already has saved data, re-open the survey in
-   the same browser. Expect: prior entries hydrate, new entries **append**, and **submit works**
-   (the v2.2.0 attribute bug that broke submit is fixed).
-5. **View Source check:** confirm the seed `<script type="application/json" id="...-seed">` shows
-   the contact's JSON (resolved) and not the literal `{{ contact.custom.providers_json }}`.
-   - If literal → the merge syntax differs in your account. Try `{{ contact.providers_json }}`
-     (no `.custom.`) or use the merge-field picker to get the exact token, then tell me.
-6. **Cross-device / renewal path test** (the trigger-link plan — see below).
+0. *(optional)* **Push the local commit** — `git push origin main` (main is 1 ahead: the v4.0 build sheet).
+1. **Open [`V4.0-NEW-SURFACE-BUILD.md`](V4.0-NEW-SURFACE-BUILD.md)** and build the net-new **form + survey**
+   on v4.0 (`dPBc7oh3Kf8lOPdzzajj`): add each widget's fields to its step (mapping in the sheet), paste the
+   four `@v2.3.0` blocks. **No field creation needed — prereqs are done** (see Session update below).
+2. **Validate on v4.0** (full checklist in the build sheet):
+   - Submit a test contact → **all 9 fields populate**, including every `_summary` (the open item from 07-01
+     — the summary fields now exist, so this should finally work once they're on the step).
+   - **View Source:** each seed `<script id="…-seed">` shows resolved JSON (or empty) — **not** the literal
+     `{{ contact.custom.providers_json }}`. If literal → try `{{ contact.providers_json }}` (no `.custom.`)
+     or grab the exact token from the merge-field picker, then flag it.
+   - Widgets render **MM purple** (`#6500c1`) → confirms `brand_primary_color` resolved.
+3. **Same-browser return test:** submit once, reopen in the same browser → prior entries hydrate, new ones
+   **append**, and **submit works** (the v2.2.0 attribute bug is fixed).
+4. **Then Marsh IG** (first live test — net-new surfaces there too), **then LPI** (config-override repoint).
+
+---
+
+## 🟢 Session update — 2026-07-03 (v4.0 provisioning + net-new decision)
+
+- **v4.0 custom fields — STANDARDIZED + DONE.** Live-probed Perfect Agency v4.0 (415 contact fields).
+  Already existed: `providers_json`, `medications_json`, `income_json`, `income_summary`. **Created the
+  missing 5:** `providers_summary`, `medications_summary`, `current_coverage_json`,
+  `current_coverage_summary` (Large Text) + **`household_income`** (Monetary). Re-probe confirms **all 9
+  keys present, correct type, no suffixed dupes**, all in the folder with the existing `_json` fields.
+- **Household income decision:** created a **generic `household_income`** (Monetary) rather than reusing the
+  year-based fields (`2024/2025/2026_household_income` — kept for tax-year records). Widget auto-total now
+  has a year-agnostic home; no per-page override needed.
+- **Brand color confirmed:** `{{ custom_values.brand_primary_color }}` = **`#6500c1`** on v4.0 → widgets
+  render on-brand automatically.
+- **Legacy intake fields left untouched:** `contact.doctors` (🏥 Doctors), `contact.provider_list`,
+  `contact.medications` (🏥 Prescriptions) — the "different fields" providers/meds were originally wired to.
+  Widgets standardize on the `_json`/`_summary` keys; old data stays put.
+- **Fleet propagation:** field creation on v4.0 **auto-syncs to sub-accounts already deployed from the
+  snapshot**, so the *fields* are standardized fleet-wide in one shot. A **new form/survey is a funnel
+  asset** — it only reaches sub-accounts on a fresh snapshot push, not already-live accounts. (For Marsh IG
+  you'll build the net-new surfaces there directly — which is the plan.)
+- **Decision — net-new surfaces:** rather than editing the existing v4.0 test survey (which would force
+  existing users over), build a **new form + survey**. Captured end-to-end in `V4.0-NEW-SURFACE-BUILD.md`.
+- **Marsh IG finding CORRECTED:** its survey (`OhA1dnXDrDD4dcrwrcXw`) is **not** the LPI fork — it runs the
+  **legacy combined all-in-one** `doc-rx-lookup@v1.0.9/dist/embed.js` (one Custom-HTML element, container
+  `<div id="rx-lookup-widget">`). Same fix direction: replace with the 4 split v2.3.0 widgets + create the
+  9 fields there.
+- **Repo housekeeping:** deleted stray debug dup `provider-lookup 2.html`; added + committed
+  `V4.0-NEW-SURFACE-BUILD.md` (`d755943`, local/unpushed).
 
 ---
 
@@ -136,12 +164,15 @@ which path fired and whether anything needs a nudge (unhide a field, change whic
 
 ---
 
-## Snapshot requirements (unchanged) — see SNAPSHOT-FIELDS.md
+## Snapshot requirements — see SNAPSHOT-FIELDS.md
+
+**✅ Provisioned on v4.0 (2026-07-03)** — this is the per-account contract; v4.0 (the snapshot source)
+now satisfies it, and existing sub-accounts inherited the fields via snapshot sync.
 
 - **9 custom fields:** 8 × Large Text (`providers_json`/`_summary`, `medications_json`/`_summary`,
-  `current_coverage_json`/`_summary`, `income_json`/`_summary`) + `household_income` (Monetary).
-- **1 custom value:** `brand_primary_color` (hex; drives widget color; optional — falls back).
-- Each field must be on the **same form/survey step** as its widget.
+  `current_coverage_json`/`_summary`, `income_json`/`_summary`) + `household_income` (Monetary). ✅ on v4.0
+- **1 custom value:** `brand_primary_color` (hex; drives widget color; optional — falls back). ✅ on v4.0 = `#6500c1`
+- Each field must be on the **same form/survey step** as its widget. ← still per-surface (do when building).
 
 ---
 
@@ -153,4 +184,9 @@ which path fired and whether anything needs a nudge (unhide a field, change whic
 - **Never hand-edit `dist/*.js`** — build artifacts. Edit the source `*.html`, then build.
 - **jsDelivr fallback** if an embed is slow to warm on a fresh tag:
   `https://rawcdn.githack.com/maxmethod/doc-rx-lookup/v2.3.0/dist/<file>`.
-- Separately: fix the **Marsh Insurance Group** survey that still has the wrong LPI-fork build.
+- Separately: fix the **Marsh Insurance Group** survey (`OhA1dnXDrDD4dcrwrcXw`) — corrected 2026-07-03: it
+  runs the **legacy combined `@v1.0.9/embed.js`** (`<div id="rx-lookup-widget">`), **not** the LPI fork.
+  Fix = build net-new form/survey with the 4 split v2.3.0 widgets + create the 9 fields on that account.
+- **LPI (last):** move off the LPI fork (`lpi-enrollment-widgets@v1.4.0`) via per-page `*_CONFIG` fieldKey
+  override pointing the generic build at LPI's existing keys → no field migration, no data loss. Prep =
+  capture LPI's actual clean keys (needs the LPI location PIT).
