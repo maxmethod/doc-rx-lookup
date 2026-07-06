@@ -1,8 +1,17 @@
 # doc-rx-lookup — Snapshot Rollout Handoff
 
-**Last updated:** 2026-07-03 (morning-prep session)
-**Current shipped version:** **`v2.3.0`** (live on jsDelivr, all 4 embeds 200 + byte-matched)
-**Repo:** `github.com/maxmethod/doc-rx-lookup` (main @ `d755943` — ⚠️ committed LOCAL, **not pushed**)
+**Last updated:** 2026-07-06 (v2.4.0 "Other → specify" release)
+**Current shipped version:** **`v2.4.0`** (live on jsDelivr, all 4 embeds 200 + byte-matched)
+**Repo:** `github.com/maxmethod/doc-rx-lookup` (main @ `72f68ab`, tag `v2.4.0` — pushed)
+
+> **✅ 2026-07-06 — ROLLOUT COMPLETE + v2.4.0 SHIPPED.** Marsh built the net-new health-quote
+> form + survey with the doctor + Rx widgets across **all** accounts, pushed the snapshot, and
+> moved Lion's Pride onto the generic build. (Income widget lives only on **LPI's pre-enrollment
+> form** — the quote forms deliberately exclude income + current coverage to keep the quote
+> simple.) Then **v2.4.0** added the **"Other" → free-text specify** field to the income-type
+> and Rx-frequency dropdowns (folds into the summary string, no new CRM field). Live embeds
+> already repointed to `@v2.4.0`. **The morning-checklist + rollout-sequence sections below are
+> now historical record**, kept for context.
 
 Pick up here first thing. **State:** the widgets are done (v2.3.0 — append + quote-safe
 returning-contact seed) and **Perfect Agency v4.0 is now fully provisioned** for them. Today's
@@ -17,7 +26,7 @@ higher-level arc + reference.
 0. *(optional)* **Push the local commit** — `git push origin main` (main is 1 ahead: the v4.0 build sheet).
 1. **Open [`V4.0-NEW-SURFACE-BUILD.md`](V4.0-NEW-SURFACE-BUILD.md)** and build the net-new **form + survey**
    on v4.0 (`dPBc7oh3Kf8lOPdzzajj`): add each widget's fields to its step (mapping in the sheet), paste the
-   four `@v2.3.0` blocks. **No field creation needed — prereqs are done** (see Session update below).
+   four `@v2.4.0` blocks. **No field creation needed — prereqs are done** (see Session update below).
 2. **Validate on v4.0** (full checklist in the build sheet):
    - Submit a test contact → **all 9 fields populate**, including every `_summary` (the open item from 07-01
      — the summary fields now exist, so this should finally work once they're on the step).
@@ -71,7 +80,8 @@ doctors/meds were wiped). Ended at: append + a quote-safe returning-contact seed
 | `v2.0.1` | Original — **overwrites** the field (wipes prior entries) |
 | `v2.1.0` | **Appends** — hydrates from the on-page field, no empty-clobber at load |
 | `v2.2.0` | Added a returning-contact **seed** via `data-initial-*` attribute — **BROKE survey submit** (see below), do not use |
-| **`v2.3.0`** ✅ | Seed moved to a **quote-safe JSON `<script>` tag**; `data-initial-*` removed; build hardened |
+| **`v2.3.0`** | Seed moved to a **quote-safe JSON `<script>` tag**; `data-initial-*` removed; build hardened |
+| **`v2.4.0`** ✅ | **"Other" → free-text specify** on the income-type + Rx-frequency dropdowns (both meds paths) — folds into the summary string, no new field, required when selected |
 
 **Two bugs found + fixed tonight:**
 1. **Attribute broke submit.** For a returning contact, GHL substitutes the stored JSON (full of
@@ -90,7 +100,7 @@ double-quotes intact) → manual add **appends** (field count 1→2) → unresol
 
 ---
 
-## Embed snippets (v2.3.0 — ready to paste)
+## Embed snippets (v2.4.0 — ready to paste)
 
 One block per widget, each in its own Custom Code element. The seed `<script>` **must sit
 BEFORE the embed `<script>`** and must not be nested inside the `<div>`.
@@ -99,22 +109,22 @@ BEFORE the embed `<script>`** and must not be nested inside the `<div>`.
 <!-- Doctors / Providers -->
 <div id="provider-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="provider-lookup-widget-seed">{{ contact.custom.providers_json }}</script>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.3.0/dist/embed-providers.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.4.0/dist/embed-providers.js"></script>
 
 <!-- Medications / Rx -->
 <div id="medications-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="medications-lookup-widget-seed">{{ contact.custom.medications_json }}</script>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.3.0/dist/embed-medications.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.4.0/dist/embed-medications.js"></script>
 
 <!-- Current Coverage -->
 <div id="coverage-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="coverage-lookup-widget-seed">{{ contact.custom.current_coverage_json }}</script>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.3.0/dist/embed-coverage.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.4.0/dist/embed-coverage.js"></script>
 
 <!-- Income Sources -->
 <div id="income-sources-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="income-sources-widget-seed">{{ contact.custom.income_json }}</script>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.3.0/dist/embed-income.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.4.0/dist/embed-income.js"></script>
 ```
 
 The seed line is safe to leave in for new contacts — unresolved `{{...}}` / empty is ignored.
@@ -183,7 +193,7 @@ now satisfies it, and existing sub-accounts inherited the fields via snapshot sy
   in the snapshot embeds. Commit as `Marshall Watts <info@maxmethodology.com>`.
 - **Never hand-edit `dist/*.js`** — build artifacts. Edit the source `*.html`, then build.
 - **jsDelivr fallback** if an embed is slow to warm on a fresh tag:
-  `https://rawcdn.githack.com/maxmethod/doc-rx-lookup/v2.3.0/dist/<file>`.
+  `https://rawcdn.githack.com/maxmethod/doc-rx-lookup/v2.4.0/dist/<file>`.
 - Separately: fix the **Marsh Insurance Group** survey (`OhA1dnXDrDD4dcrwrcXw`) — corrected 2026-07-03: it
   runs the **legacy combined `@v1.0.9/embed.js`** (`<div id="rx-lookup-widget">`), **not** the LPI fork.
   Fix = build net-new form/survey with the 4 split v2.3.0 widgets + create the 9 fields on that account.
