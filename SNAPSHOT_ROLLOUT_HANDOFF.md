@@ -9,9 +9,12 @@
 > moved Lion's Pride onto the generic build. (Income widget lives only on **LPI's pre-enrollment
 > form** — the quote forms deliberately exclude income + current coverage to keep the quote
 > simple.) Then **v2.4.0** added the **"Other" → free-text specify** field to the income-type
-> and Rx-frequency dropdowns (folds into the summary string, no new CRM field). Live embeds
-> already repointed to `@v2.4.0`. **The morning-checklist + rollout-sequence sections below are
-> now historical record**, kept for context.
+> and Rx-frequency dropdowns (folds into the summary string, no new CRM field). **LPI's live
+> embeds are repointed to `@v2.4.0`; all other sub-accounts remain on `@v2.3.0` for now** — both
+> coexist safely (v2.4.0 changed NO CRM fields, so the two builds read/write the same
+> `_json`/`_summary` schema and hydration is cross-compatible). `@v2.3.0` is immutable + still
+> serving 200. **The morning-checklist + rollout-sequence sections below are now historical
+> record**, kept for context.
 
 Pick up here first thing. **State:** the widgets are done (v2.3.0 — append + quote-safe
 returning-contact seed) and **Perfect Agency v4.0 is now fully provisioned** for them. Today's
