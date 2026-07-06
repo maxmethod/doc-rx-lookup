@@ -81,6 +81,10 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
   }
 
+  /* validation cue for a required "Other — please specify" field left blank */
+  input.err, select.err { border-color: var(--danger); }
+  input.err:focus, select.err:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); }
+
   .search-wrap { position: relative; }
 
   .search-results {
@@ -206,6 +210,12 @@
           <input type="text" id="med-applicant" placeholder="e.g. John Smith" autocomplete="off">
         </div>
       </div>
+      <!-- Shown only when Frequency = "Other". Free text folds into the frequency
+           string written to the summary/JSON — no separate CRM field. -->
+      <div id="med-freq-other-wrap" style="display:none; margin-top:10px;">
+        <label for="med-freq-other">Please specify how often</label>
+        <input type="text" id="med-freq-other" placeholder="e.g. Once weekly, Every 3 months" autocomplete="off">
+      </div>
       <div class="actions-right">
         <button type="button" id="med-cancel">Cancel</button>
         <button type="button" class="primary" id="med-add">Add medication</button>
@@ -246,6 +256,13 @@
         <div>
           <label for="med-manual-applicant">Who takes this? (optional)</label>
           <input type="text" id="med-manual-applicant" placeholder="e.g. John Smith" autocomplete="off">
+        </div>
+      </div>
+      <!-- Shown only when Frequency = "Other" (manual path). Same fold behavior. -->
+      <div class="field-group single" id="med-manual-freq-other-wrap" style="display:none;">
+        <div>
+          <label for="med-manual-freq-other">Please specify how often</label>
+          <input type="text" id="med-manual-freq-other" placeholder="e.g. Once weekly, Every 3 months" autocomplete="off">
         </div>
       </div>
       <div class="actions-right">
@@ -400,6 +417,34 @@ const medStrengthSelect = document.getElementById('med-strength');
 const medManualBlock = document.getElementById('med-manual-block');
 const medSearchBlock = document.getElementById('med-search-block');
 
+// "Other" frequency → reveal a free-text field, on both the search and manual paths.
+const medFreqSelect = document.getElementById('med-frequency');
+const medFreqOtherWrap = document.getElementById('med-freq-other-wrap');
+const medFreqOther = document.getElementById('med-freq-other');
+const medManualFreqSelect = document.getElementById('med-manual-frequency');
+const medManualFreqOtherWrap = document.getElementById('med-manual-freq-other-wrap');
+const medManualFreqOther = document.getElementById('med-manual-freq-other');
+
+function toggleFreqOther(select, wrap, input) {
+  const isOther = select.value === 'Other';
+  wrap.style.display = isOther ? '' : 'none';
+  if (isOther) { input.focus(); }
+  else { input.value = ''; input.classList.remove('err'); }
+}
+medFreqSelect.addEventListener('change', () => toggleFreqOther(medFreqSelect, medFreqOtherWrap, medFreqOther));
+medManualFreqSelect.addEventListener('change', () => toggleFreqOther(medManualFreqSelect, medManualFreqOtherWrap, medManualFreqOther));
+medFreqOther.addEventListener('input', () => medFreqOther.classList.remove('err'));
+medManualFreqOther.addEventListener('input', () => medManualFreqOther.classList.remove('err'));
+
+// Resolve a frequency select + its "Other" specify field into the final string.
+// Returns null (and flags the field) when "Other" is chosen but left blank.
+function resolveFreq(select, input) {
+  if (select.value !== 'Other') return select.value;
+  const t = input.value.trim();
+  if (!t) { input.classList.add('err'); input.focus(); return null; }
+  return t;
+}
+
 const runMedSearch = debounce(async (q) => {
   if (!q || q.length < 2) {
     medResults.classList.remove('open');
@@ -470,7 +515,8 @@ document.getElementById('med-add').onclick = async () => {
   const idx = parseInt(medStrengthSelect.value, 10);
   const selected = state.medPending.strengthOptions[idx];
   const parsed = parseDrugName(selected.name);
-  const frequency = document.getElementById('med-frequency').value;
+  const frequency = resolveFreq(medFreqSelect, medFreqOther);
+  if (frequency === null) return; // "Other" selected but no text entered
   const applicant_name = document.getElementById('med-applicant').value.trim() || null;
 
   const ndc = await getNdcForRxcui(selected.rxcui);
@@ -499,6 +545,15 @@ function resetMedSearch() {
   state.medPending = null;
   medSearchInput.value = '';
   document.getElementById('med-applicant').value = '';
+  // reset both frequency selects + their "Other" specify fields
+  medFreqSelect.value = 'Once daily';
+  medFreqOther.value = '';
+  medFreqOther.classList.remove('err');
+  medFreqOtherWrap.style.display = 'none';
+  medManualFreqSelect.value = 'Once daily';
+  medManualFreqOther.value = '';
+  medManualFreqOther.classList.remove('err');
+  medManualFreqOtherWrap.style.display = 'none';
   medStrengthBlock.style.display = 'none';
   medSearchBlock.style.display = 'block';
   medManualBlock.style.display = 'none';
@@ -516,13 +571,15 @@ document.getElementById('med-manual-cancel').onclick = resetMedSearch;
 document.getElementById('med-manual-add').onclick = () => {
   const name = document.getElementById('med-manual-name').value.trim();
   if (!name) { alert('Medication name is required.'); return; }
+  const frequency = resolveFreq(medManualFreqSelect, medManualFreqOther);
+  if (frequency === null) return; // "Other" selected but no text entered
   const entry = {
     id: `med_${Date.now()}`,
     name,
     brand_name: null,
     strength: document.getElementById('med-manual-strength').value.trim() || null,
     dosage_form: document.getElementById('med-manual-form').value.trim() || null,
-    frequency: document.getElementById('med-manual-frequency').value,
+    frequency,
     applicant_name: document.getElementById('med-manual-applicant').value.trim() || null,
     rxcui: null,
     ndc: null,

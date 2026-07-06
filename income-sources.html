@@ -81,6 +81,10 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
   }
 
+  /* validation cue for a required "Other — please specify" field left blank */
+  input.err, select.err { border-color: var(--danger); }
+  input.err:focus, select.err:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); }
+
   /* amount field with a $ prefix */
   .amount-wrap { position: relative; }
   .amount-wrap input { padding-left: 22px; }
@@ -194,6 +198,15 @@
         </div>
       </div>
 
+      <!-- Shown only when Income type = "Other". Free text folds into the income
+           type string written to the summary/JSON — no separate CRM field. -->
+      <div class="field-group single" id="inc-type-other-wrap" style="display:none;">
+        <div>
+          <label for="inc-type-other">Please specify the income type</label>
+          <input type="text" id="inc-type-other" placeholder="e.g. Rental income, Alimony, Child support" autocomplete="off">
+        </div>
+      </div>
+
       <div class="field-group">
         <div>
           <label for="inc-amount">Amount</label>
@@ -302,18 +315,35 @@ const FREQ_LABEL = { 'Annual': '/yr', 'Monthly': '/mo', 'Biweekly': '/2wk', 'Wee
 // ADD / REMOVE
 // ============================================================
 const els = {
-  type:   document.getElementById('inc-type'),
-  source: document.getElementById('inc-source'),
-  amount: document.getElementById('inc-amount'),
-  freq:   document.getElementById('inc-frequency'),
-  who:    document.getElementById('inc-who'),
-  warn:   document.getElementById('inc-warn'),
-  addBox: document.getElementById('inc-add-box')
+  type:          document.getElementById('inc-type'),
+  source:        document.getElementById('inc-source'),
+  amount:        document.getElementById('inc-amount'),
+  freq:          document.getElementById('inc-frequency'),
+  who:           document.getElementById('inc-who'),
+  typeOther:     document.getElementById('inc-type-other'),
+  typeOtherWrap: document.getElementById('inc-type-other-wrap'),
+  warn:          document.getElementById('inc-warn'),
+  addBox:        document.getElementById('inc-add-box')
 };
 
 [els.source, els.amount].forEach(el => el.addEventListener('input', () => {
   if (els.source.value.trim() && Number(els.amount.value) > 0) els.warn.classList.remove('visible');
 }));
+
+// Reveal the free-text "specify" field only when Income type = "Other".
+function syncTypeOtherVisibility() {
+  const isOther = els.type.value === 'Other';
+  els.typeOtherWrap.style.display = isOther ? '' : 'none';
+  if (!isOther) { els.typeOther.value = ''; els.typeOther.classList.remove('err'); }
+}
+els.type.addEventListener('change', () => {
+  syncTypeOtherVisibility();
+  if (els.type.value === 'Other') els.typeOther.focus();
+});
+els.typeOther.addEventListener('input', () => {
+  els.typeOther.classList.remove('err');
+  if (els.typeOther.value.trim()) els.warn.classList.remove('visible');
+});
 
 function clearAddForm() {
   els.type.value = 'W-2 / Employment';
@@ -321,7 +351,9 @@ function clearAddForm() {
   els.amount.value = '';
   els.freq.value = 'Annual';
   els.who.value = '';
+  els.typeOther.value = '';
   els.warn.classList.remove('visible');
+  syncTypeOtherVisibility();
 }
 
 document.getElementById('inc-clear').onclick = clearAddForm;
@@ -329,14 +361,26 @@ document.getElementById('inc-clear').onclick = clearAddForm;
 document.getElementById('inc-add').onclick = () => {
   const source_name = els.source.value.trim();
   const amount = Number(els.amount.value);
+  const isOther = els.type.value === 'Other';
+  const otherText = els.typeOther.value.trim();
   if (!source_name || !(amount > 0)) {
+    els.warn.textContent = 'Enter a source name and an amount before adding.';
     els.warn.classList.add('visible');
     (!source_name ? els.source : els.amount).focus();
     return;
   }
+  if (isOther && !otherText) {
+    els.warn.textContent = 'Please specify the "Other" income type before adding.';
+    els.warn.classList.add('visible');
+    els.typeOther.classList.add('err');
+    els.typeOther.focus();
+    return;
+  }
   state.income.push({
     id: `inc_${Date.now()}`,
-    income_type: els.type.value,
+    // "Other" folds the typed description straight into the income type string;
+    // it lands in the summary/JSON as-is — no separate CRM field.
+    income_type: isOther ? otherText : els.type.value,
     source_name,
     amount,
     frequency: els.freq.value,
