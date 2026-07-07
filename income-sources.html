@@ -174,7 +174,7 @@
 
     <div class="add-box" id="inc-add-box">
       <h4>Add an income source</h4>
-      <div class="warn-banner" id="inc-warn">Enter a source name and an amount before adding.</div>
+      <div class="warn-banner" id="inc-warn">Enter an amount before adding.</div>
 
       <div class="field-group">
         <div>
@@ -189,18 +189,8 @@
           </select>
         </div>
         <div>
-          <label for="inc-source">Source / Employer</label>
-          <input type="text" id="inc-source" placeholder="e.g. Acme Corp" autocomplete="off">
-        </div>
-      </div>
-
-      <!-- Shown only when Income type = "Other". OPTIONAL free text — if filled it
-           folds into the income type string (summary/JSON); if blank, "Other" is
-           stored. No separate CRM field. -->
-      <div class="field-group single" id="inc-type-other-wrap" style="display:none;">
-        <div>
-          <label for="inc-type-other">Please specify the income type (optional)</label>
-          <input type="text" id="inc-type-other" placeholder="e.g. Rental income, Alimony, Child support" autocomplete="off">
+          <label for="inc-source">Source / Employer (optional)</label>
+          <input type="text" id="inc-source" placeholder="e.g. Acme Corp, rental property" autocomplete="off">
         </div>
       </div>
 
@@ -312,31 +302,18 @@ const FREQ_LABEL = { 'Annual': '/yr', 'Monthly': '/mo', 'Biweekly': '/2wk', 'Wee
 // ADD / REMOVE
 // ============================================================
 const els = {
-  type:          document.getElementById('inc-type'),
-  source:        document.getElementById('inc-source'),
-  amount:        document.getElementById('inc-amount'),
-  freq:          document.getElementById('inc-frequency'),
-  who:           document.getElementById('inc-who'),
-  typeOther:     document.getElementById('inc-type-other'),
-  typeOtherWrap: document.getElementById('inc-type-other-wrap'),
-  warn:          document.getElementById('inc-warn'),
-  addBox:        document.getElementById('inc-add-box')
+  type:   document.getElementById('inc-type'),
+  source: document.getElementById('inc-source'),
+  amount: document.getElementById('inc-amount'),
+  freq:   document.getElementById('inc-frequency'),
+  who:    document.getElementById('inc-who'),
+  warn:   document.getElementById('inc-warn'),
+  addBox: document.getElementById('inc-add-box')
 };
 
-[els.source, els.amount].forEach(el => el.addEventListener('input', () => {
-  if (els.source.value.trim() && Number(els.amount.value) > 0) els.warn.classList.remove('visible');
-}));
-
-// Reveal the free-text "specify" field only when Income type = "Other". The field
-// is OPTIONAL — a blank entry is allowed (folds back to "Other" on add).
-function syncTypeOtherVisibility() {
-  const isOther = els.type.value === 'Other';
-  els.typeOtherWrap.style.display = isOther ? '' : 'none';
-  if (!isOther) els.typeOther.value = '';
-}
-els.type.addEventListener('change', () => {
-  syncTypeOtherVisibility();
-  if (els.type.value === 'Other') els.typeOther.focus();
+// Amount is the only required field; Source / Employer is optional.
+els.amount.addEventListener('input', () => {
+  if (Number(els.amount.value) > 0) els.warn.classList.remove('visible');
 });
 
 function clearAddForm() {
@@ -345,28 +322,24 @@ function clearAddForm() {
   els.amount.value = '';
   els.freq.value = 'Annual';
   els.who.value = '';
-  els.typeOther.value = '';
   els.warn.classList.remove('visible');
-  syncTypeOtherVisibility();
 }
 
 document.getElementById('inc-clear').onclick = clearAddForm;
 
 document.getElementById('inc-add').onclick = () => {
-  const source_name = els.source.value.trim();
   const amount = Number(els.amount.value);
-  if (!source_name || !(amount > 0)) {
+  if (!(amount > 0)) {
     els.warn.classList.add('visible');
-    (!source_name ? els.source : els.amount).focus();
+    els.amount.focus();
     return;
   }
-  const isOther = els.type.value === 'Other';
   state.income.push({
     id: `inc_${Date.now()}`,
-    // "Other" folds the OPTIONAL typed description into the income type string;
-    // a blank entry falls back to the literal "Other". No separate CRM field.
-    income_type: isOther ? (els.typeOther.value.trim() || 'Other') : els.type.value,
-    source_name,
+    income_type: els.type.value,
+    // Source / Employer is optional; for an "Other" income type the user can
+    // describe where it comes from here. May be blank.
+    source_name: els.source.value.trim(),
     amount,
     frequency: els.freq.value,
     who_earns: els.who.value.trim() || null
@@ -386,13 +359,18 @@ function renderIncome() {
     const per = `${fmtMoney(r.amount)}${FREQ_LABEL[r.frequency] || ''}`;
     const ann = annualOf(r);
     const annNote = r.frequency !== 'Annual' ? ` ≈ ${fmtMoney(ann)}/yr` : '';
-    const meta = [escapeHtml(r.income_type)];
+    // Source is optional: fall back to the income type as the card title, and
+    // only repeat the type in the meta line when a source is actually shown.
+    const name = r.source_name || r.income_type;
+    const meta = [];
+    if (r.source_name) meta.push(escapeHtml(r.income_type));
     if (r.who_earns) meta.push(escapeHtml(r.who_earns));
+    const metaStr = meta.join(' · ');
     return `
       <div class="item-card">
         <div class="item-card-main">
-          <div class="item-card-name">${escapeHtml(r.source_name)}</div>
-          <div class="item-card-meta">${meta.join(' · ')}</div>
+          <div class="item-card-name">${escapeHtml(name)}</div>
+          ${metaStr ? `<div class="item-card-meta">${metaStr}</div>` : ''}
         </div>
         <div style="text-align:right;">
           <div class="item-card-amount">${per}</div>
@@ -445,7 +423,9 @@ function buildIncomeSummary() {
   if (state.income.length === 0) return '';
   const lines = [`INCOME SOURCES (${state.income.length})`, ''];
   for (const r of state.income) {
-    let line = `• ${r.source_name} (${r.income_type}) — ${fmtMoney(r.amount)} ${r.frequency.toLowerCase()}`;
+    // With no source, lead with the income type; otherwise "Source (Type)".
+    const label = r.source_name ? `${r.source_name} (${r.income_type})` : r.income_type;
+    let line = `• ${label} — ${fmtMoney(r.amount)} ${r.frequency.toLowerCase()}`;
     if (r.frequency !== 'Annual') line += ` ≈ ${fmtMoney(annualOf(r))}/yr`;
     if (r.who_earns) line += ` — ${r.who_earns}`;
     lines.push(line);

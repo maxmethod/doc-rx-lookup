@@ -65,7 +65,7 @@ attribute path was **removed in v2.3.0**).
 ```html
 <div id="provider-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="provider-lookup-widget-seed">{{ contact.custom.providers_json }}</script>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.4.0/dist/embed-providers.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.4.2/dist/embed-providers.js"></script>
 ```
 
 A `window.<CFG>.initial<Thing>` JS global is still read as a secondary override. Unresolved
@@ -83,22 +83,19 @@ A `window.<CFG>.initial<Thing>` JS global is still read as a secondary override.
 > behaves exactly as v2.1.0. The seed `<script>` MUST sit before the embed `<script>` and must
 > not be nested inside the `<div>`.
 
-## "Other" → free-text specify (v2.4.0)
+## Medications "Other" frequency → free-text specify
 
-Two dropdowns let the user describe an option that isn't listed, without adding any
-new CRM field:
+On the **Medications** widget, picking frequency **"Other"** — on **both** the RxNorm-search
+path and the manual-entry path — reveals a **required** *"Please specify how often"* input whose
+typed value (e.g. `Once weekly`) **folds into the `frequency`** string. It flows into the same
+`medications_summary` / `_json` fields — **no new field, no wiring change** — and round-trips
+through hydration like any other value.
 
-- **Income Sources** — picking income type **"Other"** reveals a required *"Please specify
-  the income type"* input. The typed value (e.g. `Rental income`) **folds into the
-  `income_type`** string, so the summary bullet reads `… (Rental income) …`, not `(Other)`.
-- **Medications** — picking frequency **"Other"** — on **both** the RxNorm-search path and
-  the manual-entry path — reveals a required *"Please specify how often"* input. The typed
-  value (e.g. `Once weekly`) **folds into the `frequency`** string.
-
-The specify field is **required** when "Other" is selected (a blank entry blocks the add and
-flags the field). Because the text folds into the existing type/frequency string, it flows
-straight into the same `_summary` / `_json` fields — **no new field, no wiring change**, and
-it round-trips through hydration like any other value.
+> **Income widget note:** the Income widget has **no** "Other" popup. Its **Source / Employer**
+> field is **optional**, and for an "Other" income type the user just describes the source there
+> (e.g. `Rental property` → summary `Rental property (Other)`); left blank, the line leads with
+> the income type (`Social Security`). (`v2.4.0`/`v2.4.1` used a separate income popup for this —
+> removed in `v2.4.2`.)
 
 ## Brand color — driven by a GHL custom value
 
@@ -133,7 +130,7 @@ Paste each into a Custom Code / Custom HTML block. Ready-to-paste copies are in 
 <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-income.js"></script>
 ```
 
-> Pin `@vX.Y.Z` to a real tag, not `@main` (current stable: **`v2.4.0`**). Test on the **published** form/survey — GHL's in-builder preview may not run `<script>`.
+> Pin `@vX.Y.Z` to a real tag, not `@main` (current stable: **`v2.4.2`**). Test on the **published** form/survey — GHL's in-builder preview may not run `<script>`.
 
 ## What the snapshot must contain
 
