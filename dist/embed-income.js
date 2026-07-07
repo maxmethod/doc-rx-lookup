@@ -60,7 +60,7 @@
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
-  }#income-sources-widget#income-sources-widget input.err, #income-sources-widget#income-sources-widget select.err { border-color: var(--danger); }#income-sources-widget#income-sources-widget input.err:focus, #income-sources-widget#income-sources-widget select.err:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); }#income-sources-widget#income-sources-widget .amount-wrap { position: relative; }#income-sources-widget#income-sources-widget .amount-wrap input { padding-left: 22px; }#income-sources-widget#income-sources-widget .amount-wrap::before {
+  }#income-sources-widget#income-sources-widget .amount-wrap { position: relative; }#income-sources-widget#income-sources-widget .amount-wrap input { padding-left: 22px; }#income-sources-widget#income-sources-widget .amount-wrap::before {
     content: "$";
     position: absolute;
     left: 10px; top: 50%;
@@ -143,11 +143,12 @@
         </div>
       </div>
 
-      <!-- Shown only when Income type = "Other". Free text folds into the income
-           type string written to the summary/JSON — no separate CRM field. -->
+      <!-- Shown only when Income type = "Other". OPTIONAL free text — if filled it
+           folds into the income type string (summary/JSON); if blank, "Other" is
+           stored. No separate CRM field. -->
       <div class="field-group single" id="inc-type-other-wrap" style="display:none;">
         <div>
-          <label for="inc-type-other">Please specify the income type</label>
+          <label for="inc-type-other">Please specify the income type (optional)</label>
           <input type="text" id="inc-type-other" placeholder="e.g. Rental income, Alimony, Child support" autocomplete="off">
         </div>
       </div>
@@ -276,19 +277,16 @@ const els = {
   if (els.source.value.trim() && Number(els.amount.value) > 0) els.warn.classList.remove('visible');
 }));
 
-// Reveal the free-text "specify" field only when Income type = "Other".
+// Reveal the free-text "specify" field only when Income type = "Other". The field
+// is OPTIONAL — a blank entry is allowed (folds back to "Other" on add).
 function syncTypeOtherVisibility() {
   const isOther = els.type.value === 'Other';
   els.typeOtherWrap.style.display = isOther ? '' : 'none';
-  if (!isOther) { els.typeOther.value = ''; els.typeOther.classList.remove('err'); }
+  if (!isOther) els.typeOther.value = '';
 }
 els.type.addEventListener('change', () => {
   syncTypeOtherVisibility();
   if (els.type.value === 'Other') els.typeOther.focus();
-});
-els.typeOther.addEventListener('input', () => {
-  els.typeOther.classList.remove('err');
-  if (els.typeOther.value.trim()) els.warn.classList.remove('visible');
 });
 
 function clearAddForm() {
@@ -307,26 +305,17 @@ document.getElementById('inc-clear').onclick = clearAddForm;
 document.getElementById('inc-add').onclick = () => {
   const source_name = els.source.value.trim();
   const amount = Number(els.amount.value);
-  const isOther = els.type.value === 'Other';
-  const otherText = els.typeOther.value.trim();
   if (!source_name || !(amount > 0)) {
-    els.warn.textContent = 'Enter a source name and an amount before adding.';
     els.warn.classList.add('visible');
     (!source_name ? els.source : els.amount).focus();
     return;
   }
-  if (isOther && !otherText) {
-    els.warn.textContent = 'Please specify the "Other" income type before adding.';
-    els.warn.classList.add('visible');
-    els.typeOther.classList.add('err');
-    els.typeOther.focus();
-    return;
-  }
+  const isOther = els.type.value === 'Other';
   state.income.push({
     id: `inc_${Date.now()}`,
-    // "Other" folds the typed description straight into the income type string;
-    // it lands in the summary/JSON as-is — no separate CRM field.
-    income_type: isOther ? otherText : els.type.value,
+    // "Other" folds the OPTIONAL typed description into the income type string;
+    // a blank entry falls back to the literal "Other". No separate CRM field.
+    income_type: isOther ? (els.typeOther.value.trim() || 'Other') : els.type.value,
     source_name,
     amount,
     frequency: els.freq.value,
