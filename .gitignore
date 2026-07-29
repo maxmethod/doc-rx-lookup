@@ -22,3 +22,8 @@ node_modules/
 
 # Local embed tester (not meant for production)
 test-embed.html
+
+# macOS/iCloud/Drive copy-conflict artifacts ("Foo 2.tsx", "[id] 2/"). Never part of a build, and a
+# " 2" route dir breaks `next build`. gitignore syntax → these bare patterns match at any depth.
+* [0-9].*
+* [0-9]
