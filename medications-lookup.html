@@ -216,6 +216,26 @@
         <label for="med-freq-other">Please specify how often</label>
         <input type="text" id="med-freq-other" placeholder="e.g. Once weekly, Every 3 months" autocomplete="off">
       </div>
+      <!-- Quantity and days supply are optional PRICING inputs, deliberately with no default.
+           A drug's cost is quantity times days supply, so a fabricated value is worse than a
+           blank one. Days supply is a fixed list because the receiving side treats it as a
+           refill cadence (30 days reads as "every month"), and off-cycle values map
+           unpredictably. -->
+      <div class="rx-row" style="margin-top:10px;">
+        <div>
+          <label for="med-quantity">Quantity per fill (optional)</label>
+          <input type="number" id="med-quantity" min="1" max="999" step="1" placeholder="e.g. 30" autocomplete="off">
+        </div>
+        <div>
+          <label for="med-days-supply">Days supply (optional)</label>
+          <select id="med-days-supply">
+            <option value="">Not specified</option>
+            <option value="30">30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
+          </select>
+        </div>
+      </div>
       <div class="actions-right">
         <button type="button" id="med-cancel">Cancel</button>
         <button type="button" class="primary" id="med-add">Add medication</button>
@@ -263,6 +283,22 @@
         <div>
           <label for="med-manual-freq-other">Please specify how often</label>
           <input type="text" id="med-manual-freq-other" placeholder="e.g. Once weekly, Every 3 months" autocomplete="off">
+        </div>
+      </div>
+      <!-- Same optional pricing inputs as the search path. See the comment there. -->
+      <div class="field-group">
+        <div>
+          <label for="med-manual-quantity">Quantity per fill (optional)</label>
+          <input type="number" id="med-manual-quantity" min="1" max="999" step="1" placeholder="e.g. 30" autocomplete="off">
+        </div>
+        <div>
+          <label for="med-manual-days-supply">Days supply (optional)</label>
+          <select id="med-manual-days-supply">
+            <option value="">Not specified</option>
+            <option value="30">30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
+          </select>
         </div>
       </div>
       <div class="actions-right">
@@ -445,6 +481,23 @@ function resolveFreq(select, input) {
   return t;
 }
 
+// Coerce to a positive integer, or null. Used for both quantity and days supply so a blank,
+// a zero, or junk all collapse to the same "not captured" value rather than a misleading 0.
+function posInt(v) {
+  const n = parseInt(String(v == null ? '' : v).trim(), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// Read the optional quantity + days-supply pair off either entry path. Never substitutes a
+// default: these two are what a drug's cost is computed from, so an invented value would be
+// indistinguishable from one the agent actually confirmed.
+function readQtyDays(qtyId, daysId) {
+  return {
+    quantity: posInt(document.getElementById(qtyId).value),
+    days_supply: posInt(document.getElementById(daysId).value)
+  };
+}
+
 const runMedSearch = debounce(async (q) => {
   if (!q || q.length < 2) {
     medResults.classList.remove('open');
@@ -518,6 +571,7 @@ document.getElementById('med-add').onclick = async () => {
   const frequency = resolveFreq(medFreqSelect, medFreqOther);
   if (frequency === null) return; // "Other" selected but no text entered
   const applicant_name = document.getElementById('med-applicant').value.trim() || null;
+  const { quantity, days_supply } = readQtyDays('med-quantity', 'med-days-supply');
 
   const ndc = await getNdcForRxcui(selected.rxcui);
 
@@ -530,6 +584,8 @@ document.getElementById('med-add').onclick = async () => {
     dosage_form: parsed.dosageForm,
     frequency,
     applicant_name,
+    quantity,
+    days_supply,
     rxcui: selected.rxcui,
     ndc,
     source: 'rxnorm',
@@ -545,6 +601,10 @@ function resetMedSearch() {
   state.medPending = null;
   medSearchInput.value = '';
   document.getElementById('med-applicant').value = '';
+  // clear the optional pricing inputs on BOTH paths, so a value typed for one drug can never
+  // ride along onto the next one the agent adds
+  ['med-quantity','med-days-supply','med-manual-quantity','med-manual-days-supply']
+    .forEach(id => { document.getElementById(id).value = ''; });
   // reset both frequency selects + their "Other" specify fields
   medFreqSelect.value = 'Once daily';
   medFreqOther.value = '';
@@ -581,13 +641,15 @@ document.getElementById('med-manual-add').onclick = () => {
     dosage_form: document.getElementById('med-manual-form').value.trim() || null,
     frequency,
     applicant_name: document.getElementById('med-manual-applicant').value.trim() || null,
+    ...readQtyDays('med-manual-quantity', 'med-manual-days-supply'),
     rxcui: null,
     ndc: null,
     source: 'manual',
     display_name: name
   };
   state.medications.push(entry);
-  ['med-manual-name','med-manual-strength','med-manual-form','med-manual-applicant'].forEach(id => document.getElementById(id).value = '');
+  ['med-manual-name','med-manual-strength','med-manual-form','med-manual-applicant',
+   'med-manual-quantity','med-manual-days-supply'].forEach(id => document.getElementById(id).value = '');
   renderMedications();
   resetMedSearch();
 };
@@ -608,6 +670,7 @@ function renderMedications() {
     if (m.dosage_form) parts.push(escapeHtml(m.dosage_form));
     const manualBadge = m.source === 'manual' ? '<span class="item-card-badge">Manual</span>' : '';
     const metaParts = [escapeHtml(m.frequency)];
+    if (posInt(m.quantity) && posInt(m.days_supply)) metaParts.push(`${posInt(m.quantity)} per ${posInt(m.days_supply)} days`);
     if (m.applicant_name) metaParts.push(`for ${escapeHtml(m.applicant_name)}`);
     return `
       <div class="item-card ${m.source === 'manual' ? 'manual' : ''}">
@@ -641,14 +704,19 @@ function renderMedications() {
 // ============================================================
 // JSON + SUMMARY BUILDERS
 // ============================================================
+// version 1.1 adds quantity + days_supply. The bump matters: a 1.0 row and a 1.1 row where the
+// agent left both blank are byte-identical, so without it nothing downstream could tell "captured
+// before these fields existed" from "captured after and left empty".
 function buildMedicationsJson() {
   return JSON.stringify({
-    version: '1.0',
+    version: '1.1',
     count: state.medications.length,
     items: state.medications.map(m => ({
       id: m.id, name: m.name, brand_name: m.brand_name,
       strength: m.strength, dosage_form: m.dosage_form, frequency: m.frequency,
       applicant_name: m.applicant_name || null,
+      quantity: posInt(m.quantity),
+      days_supply: posInt(m.days_supply),
       rxcui: m.rxcui, ndc: m.ndc, source: m.source
     }))
   });
@@ -664,6 +732,8 @@ function buildMedicationsSummary() {
     if (m.strength) parts.push(m.strength);
     if (m.dosage_form) parts.push(m.dosage_form);
     let line = `• ${parts.join(' ')} — ${m.frequency}`;
+    // Both or neither: a quantity with no days supply is not a pricing input, it is just a number.
+    if (posInt(m.quantity) && posInt(m.days_supply)) line += `, ${posInt(m.quantity)} per ${posInt(m.days_supply)} days`;
     if (m.applicant_name) line += ` (for ${m.applicant_name})`;
     if (m.source === 'manual') line += ' [manually entered]';
     lines.push(line);
@@ -834,6 +904,10 @@ function hydrateFromField() {
         dosage_form: it.dosage_form || null,
         frequency: it.frequency || 'As directed',
         applicant_name: it.applicant_name || null,
+        // carried through so a returning contact does not silently lose the pricing inputs;
+        // posInt tolerates the string form in case an older writer stored them as text
+        quantity: posInt(it.quantity),
+        days_supply: posInt(it.days_supply),
         rxcui: it.rxcui || null,
         ndc: it.ndc || null,
         source: it.source || 'lookup'
