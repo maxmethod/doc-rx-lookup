@@ -361,6 +361,100 @@ function escapeHtml(s) {
 }
 
 // ============================================================
+// SEARCH PROVIDER: RxNorm (public) or HealthSherpa (module only)
+// ============================================================
+// Two providers, one UI. The chooser is a single config value.
+//
+// 🩸 WHY THE SPLIT EXISTS AND MUST STAY: the HealthSherpa search needs an
+// External API token, which can NEVER ship to a browser. So the HS path goes
+// through a same-origin proxy that only the authenticated MODULE surface has.
+// Funnel embeds are public and have no proxy, so they keep RxNorm. Setting
+// window.MEDS_CONFIG.rxSearchUrl is what opts a surface into HS mode; leaving
+// it unset is the default and is byte-for-byte today's behaviour.
+//
+// 🩸 WHY HS MODE CANNOT ALSO KEEP rxcui: HealthSherpa's search response carries
+// NO code system at all (their fields are id, product_proprietary_name,
+// product_proprietary_name_without_dosage, substance_name, dosage_variations).
+// HS drug ids and RxNorm rxcui are DISJOINT namespaces, verified against NLM
+// RxNav. Matching one to the other could only be done on drug NAME, which is a
+// fuzzy join sitting underneath a coverage claim, so we do not do it. An HS
+// capture therefore carries hs_rx_id and a null rxcui, and `source` records
+// which generation the row came from.
+const RX_SEARCH_URL = (typeof window !== 'undefined' && window.MEDS_CONFIG
+  && typeof window.MEDS_CONFIG.rxSearchUrl === 'string'
+  && window.MEDS_CONFIG.rxSearchUrl.trim()) || null;
+
+function usingHealthSherpaSearch() { return !!RX_SEARCH_URL; }
+
+// Search results are held here rather than serialized into data- attributes.
+// HealthSherpa entities carry a nested dosage_variations array that has no sane
+// attribute encoding, and an index keeps the click handler identical for both
+// providers.
+let lastResults = [];
+
+// ---- HealthSherpa -------------------------------------------------------
+async function searchMedicationsHS(query) {
+  try {
+    const url = `${RX_SEARCH_URL}${RX_SEARCH_URL.includes('?') ? '&' : '?'}q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, { credentials: 'same-origin' });
+    if (!res.ok) {
+      // A 503 means the External API token is not configured yet, which is the
+      // expected state until HealthSherpa issues it. Everything else is a real
+      // failure. Either way the agent gets the manual-entry path, never a
+      // broken box.
+      console.error('HealthSherpa drug search failed:', res.status);
+      return [];
+    }
+    const data = await res.json();
+    const entities = (data && Array.isArray(data.entities)) ? data.entities : [];
+    return entities.map(e => ({
+      provider: 'healthsherpa',
+      hs_rx_id: e.id != null ? String(e.id) : null,
+      // Label the RESULT with the dosage-free name: it is the product family,
+      // which is what someone is picking at this step.
+      name: e.product_proprietary_name_without_dosage || e.product_proprietary_name || '',
+      full_name: e.product_proprietary_name || '',
+      // 🩸 substance_name is a CATEGORY ("Branded / Pen Injector"), NOT an
+      // ingredient. It must never be mapped to a brand_name-style field.
+      category: e.substance_name || null,
+      variations: Array.isArray(e.dosage_variations) ? e.dosage_variations : []
+    })).filter(r => r.hs_rx_id);
+  } catch (e) {
+    console.error('HealthSherpa drug search failed:', e);
+    return [];
+  }
+}
+
+// 🩸 Their dosage list is INCONSISTENT about whether the parent appears in its
+// own variations: HS's documented example has entity 12611 listing itself while
+// 12612 lists only 12613 and omits its own dosage. So build the picker as
+// union(parent, variations) DEDUPED BY ID, or a real strength silently
+// disappears from the list.
+//
+// 🩸 And label with product_proprietary_name, never the _without_dosage form:
+// that field is NOT unique across variations (HS's own example has 12612 and
+// 12613 sharing a byte-identical one), so labelling with it renders every
+// option the same and the agent picks blind.
+function dosageOptionsHS(entity) {
+  const out = [];
+  const seen = new Set();
+  const push = (v) => {
+    if (!v || v.id == null) return;
+    const id = String(v.id);
+    if (seen.has(id)) return;
+    seen.add(id);
+    out.push({
+      hs_rx_id: id,
+      name: v.product_proprietary_name || v.product_proprietary_name_without_dosage || id,
+      type: 'HS'
+    });
+  };
+  push({ id: entity.hs_rx_id, product_proprietary_name: entity.full_name || entity.name });
+  (entity.variations || []).forEach(push);
+  return out;
+}
+
+// ============================================================
 // MEDICATION SEARCH (RxNorm)
 // ============================================================
 async function searchMedications(query) {
@@ -505,8 +599,11 @@ const runMedSearch = debounce(async (q) => {
     return;
   }
   medLoading.style.display = 'block';
-  const results = await searchMedications(q);
+  const results = usingHealthSherpaSearch()
+    ? await searchMedicationsHS(q)
+    : await searchMedications(q);
   medLoading.style.display = 'none';
+  lastResults = results;
 
   if (results.length === 0) {
     medResults.innerHTML = '<div class="result-empty">No matches found. <a id="med-no-match-manual">Enter manually</a></div>';
@@ -518,16 +615,26 @@ const runMedSearch = debounce(async (q) => {
     return;
   }
 
-  medResults.innerHTML = results.map(r => `
-    <div class="result-item" data-rxcui="${escapeHtml(r.rxcui)}" data-name="${escapeHtml(r.name || '')}">
+  // The meta line names the source on purpose. An agent looking at a drug that
+  // did not price the way they expected should be able to see which catalogue
+  // it came from without reading JSON.
+  medResults.innerHTML = results.map((r, i) => `
+    <div class="result-item" data-idx="${i}">
       <div class="name">${escapeHtml(r.name || 'Unknown')}</div>
-      <div class="meta">RxCUI: ${escapeHtml(r.rxcui)}</div>
+      <div class="meta">${r.provider === 'healthsherpa'
+        ? escapeHtml(r.category || 'HealthSherpa')
+        : 'RxCUI: ' + escapeHtml(r.rxcui)}</div>
     </div>
   `).join('');
   medResults.classList.add('open');
 
   medResults.querySelectorAll('.result-item').forEach(el => {
-    el.onclick = () => selectMedication(el.dataset.rxcui, el.dataset.name);
+    el.onclick = () => {
+      const r = lastResults[parseInt(el.dataset.idx, 10)];
+      if (!r) return;
+      if (r.provider === 'healthsherpa') selectMedicationHS(r);
+      else selectMedication(r.rxcui, r.name);
+    };
   });
 }, DEBOUNCE_MS);
 
@@ -561,6 +668,30 @@ async function selectMedication(rxcui, name) {
   medSearchBlock.style.display = 'none';
 }
 
+/** HealthSherpa's equivalent of selectMedication. No second network call: their
+ *  search already returns the dosage variations nested on the entity, so the
+ *  strength picker is populated from what we have. */
+function selectMedicationHS(entity) {
+  medResults.classList.remove('open');
+  medSearchInput.value = entity.name;
+
+  state.medPending = {
+    provider: 'healthsherpa',
+    hs_rx_id: entity.hs_rx_id,
+    name: entity.name,
+    // 🩸 NOT entity.category. substance_name is a category string, not a brand.
+    brand_name: null,
+    strengthOptions: dosageOptionsHS(entity)
+  };
+
+  medStrengthSelect.innerHTML = state.medPending.strengthOptions
+    .map((s, i) => `<option value="${i}">${escapeHtml(s.name)}</option>`)
+    .join('');
+
+  medStrengthBlock.style.display = 'block';
+  medSearchBlock.style.display = 'none';
+}
+
 document.getElementById('med-cancel').onclick = () => resetMedSearch();
 
 document.getElementById('med-add').onclick = async () => {
@@ -573,22 +704,46 @@ document.getElementById('med-add').onclick = async () => {
   const applicant_name = document.getElementById('med-applicant').value.trim() || null;
   const { quantity, days_supply } = readQtyDays('med-quantity', 'med-days-supply');
 
-  const ndc = await getNdcForRxcui(selected.rxcui);
+  const isHS = state.medPending.provider === 'healthsherpa';
 
-  const isBranded = selected.type === 'SBD';
+  // 🩸 rxcui and ndc are RxNorm-only. In HS mode they stay null rather than
+  // being filled from anything on the HS entity: the namespaces are disjoint,
+  // and a wrong code here is worse than a missing one. Likewise hs_rx_id is
+  // null on the RxNorm path. Exactly one of the two is ever populated, and
+  // `source` says which.
+  const ndc = isHS ? null : await getNdcForRxcui(selected.rxcui);
+
+  const isBranded = !isHS && selected.type === 'SBD';
   const entry = {
     id: `med_${Date.now()}`,
-    name: isBranded ? state.medPending.name : selected.name.split(/\s+\d/)[0].trim(),
+    // 🩸 HS MODE USES THE FULL VARIATION NAME, and the verbosity is the point.
+    // The family name is shared across dosages ("Lyumjev: Insulin Lispro Pen
+    // Injector" covers both the 100 and the 200 Unt/Ml), so naming the row after
+    // it renders two GENUINELY DIFFERENT drugs as identical cards and the agent
+    // reasonably concludes they double-added. It also matches exactly the string
+    // they just picked from the dosage dropdown, so nothing changes under them.
+    name: isHS
+      ? selected.name
+      : (isBranded ? state.medPending.name : selected.name.split(/\s+\d/)[0].trim()),
     brand_name: isBranded ? state.medPending.name : (state.medPending.brand_name || null),
-    strength: parsed.strength,
-    dosage_form: parsed.dosageForm,
+    // 🩸 NOT PARSED IN HS MODE. parseDrugName is tuned to RxNorm's naming and
+    // reads the FIRST number it finds, which on a HealthSherpa product string is
+    // the package size rather than the dose: "Lyumjev: 3 Ml ... 100 Unt/Ml Pen
+    // Injector" yields "3 ml", the pen volume, for BOTH the 100 and the 200
+    // strength. A confidently wrong strength on screen is worse than none, and
+    // the full name above already carries the real dosage.
+    strength: isHS ? null : parsed.strength,
+    dosage_form: isHS ? null : parsed.dosageForm,
     frequency,
     applicant_name,
     quantity,
     days_supply,
-    rxcui: selected.rxcui,
+    rxcui: isHS ? null : selected.rxcui,
     ndc,
-    source: 'rxnorm',
+    // The HealthSherpa drug id, and the entire point of HS mode. It is what
+    // rides the quote deeplink as rx_records[]=<id>f.
+    hs_rx_id: isHS ? selected.hs_rx_id : null,
+    source: isHS ? 'healthsherpa' : 'rxnorm',
     display_name: selected.name
   };
 
@@ -709,7 +864,11 @@ function renderMedications() {
 // before these fields existed" from "captured after and left empty".
 function buildMedicationsJson() {
   return JSON.stringify({
-    version: '1.1',
+    // 1.2 adds hs_rx_id. The stamp is bumped because a reader otherwise cannot
+    // tell "captured before HealthSherpa ids existed" from "captured after, but
+    // this drug is not in their catalogue", and those call for opposite
+    // responses. Same reasoning that put 1.1 on the quantity change.
+    version: '1.2',
     count: state.medications.length,
     items: state.medications.map(m => ({
       id: m.id, name: m.name, brand_name: m.brand_name,
@@ -717,7 +876,13 @@ function buildMedicationsJson() {
       applicant_name: m.applicant_name || null,
       quantity: posInt(m.quantity),
       days_supply: posInt(m.days_supply),
-      rxcui: m.rxcui, ndc: m.ndc, source: m.source
+      // 🩸 ADDITIVE. rxcui and ndc are kept exactly as they were so an existing
+      // RxNorm-captured book is not rewritten, and so a future HealthSherpa
+      // crosswalk (if they ever supply one) stays usable. hs_rx_id sits
+      // alongside them; it is never derived from them.
+      rxcui: m.rxcui, ndc: m.ndc,
+      hs_rx_id: m.hs_rx_id || null,
+      source: m.source
     }))
   });
 }
@@ -892,7 +1057,11 @@ function hydrateFromField() {
     const parsed = JSON.parse(raw);
     const items = parsed && Array.isArray(parsed.items) ? parsed.items : null;
     if (!items) return;
-    const keyOf = m => [m.rxcui, m.name, m.strength, m.dosage_form, m.applicant_name].join('|');
+    // hs_rx_id joins the identity key. Without it, two genuinely different
+    // HealthSherpa dosages of one product (which share a family name and carry
+    // no rxcui) collapse into one row on hydrate and the agent silently loses a
+    // drug they entered.
+    const keyOf = m => [m.rxcui, m.hs_rx_id, m.name, m.strength, m.dosage_form, m.applicant_name].join('|');
     const seen = new Set(state.medications.map(keyOf));
     items.forEach((it, i) => {
       if (!it || !it.name) return;
@@ -910,6 +1079,12 @@ function hydrateFromField() {
         days_supply: posInt(it.days_supply),
         rxcui: it.rxcui || null,
         ndc: it.ndc || null,
+        // 🩸 THIS LINE IS LOAD-BEARING. This function rebuilds every item from a
+        // FIXED key list, so any field missing here is DESTROYED the next time a
+        // returning visitor hydrates and the widget writes back. hs_rx_id is the
+        // one field the quote deeplink depends on, so losing it silently empties
+        // the drug filter on the quote with nothing to show why.
+        hs_rx_id: it.hs_rx_id || null,
         source: it.source || 'lookup'
       };
       const k = keyOf(m);
