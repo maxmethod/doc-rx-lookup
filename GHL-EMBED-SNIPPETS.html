@@ -44,3 +44,49 @@
 <div id="income-sources-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="income-sources-widget-seed">{{ contact.custom.income_json }}</script>
 <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-income.js"></script>
+
+
+<!-- ============================================================
+     STAGING RETARGET (2026-09-06) — makes the survey write NON-DESTRUCTIVE.
+     Paste this ONE block ABOVE the widget blocks above, in the same Custom HTML
+     element or an earlier one on the same step.
+
+     WHAT IT FIXES. The widget writes its WHOLE current list on every change. When
+     the hydration seed does not resolve — which is the common case for drip
+     traffic, not the rare one — the widget starts empty, the client adds two
+     doctors, and the eight already on the contact are replaced by two. Tested and
+     confirmed 2026-09-05; the seed cannot be made to resolve for that traffic.
+
+     WHAT IT DOES. Points the widget's WRITE at a staging field. The canonical
+     field is then only ever written by the policy-sync merge
+     (POST /webhooks/rx/merge), which can add to the stored list and cannot
+     shrink it. FIELD_KEYS is read at parse time, so this needs NO new CDN tag
+     and does NOT change a funnel's existing @vX.Y.Z pin.
+
+     🩸 THE CANONICAL FIELDS MUST NOT BE ON THIS SURVEY AT ALL.
+     Not hidden, not empty, not present. A survey that still carries a
+     providers_json input submits it empty, which blanks the contact's canonical
+     value at exactly the moment the merge is about to read it — and the merge
+     would then faithfully preserve nothing. Remove providers_json,
+     providers_summary, medications_json and medications_summary from the survey
+     and add the four *_staging fields in their place.
+
+     ⚠️ A widget only writes into a field that is ON THE SAME STEP it sits on.
+     The four staging fields must be present (hidden is fine) on the step
+     carrying the widgets, exactly as SNAPSHOT-FIELDS.md describes for the
+     canonical ones.
+
+     THE SEED LINE STAYS AND IS STILL HARMLESS. With the retarget in place the
+     widget reads the (empty) staging field, falls through to the seed, and if
+     the seed happens to resolve it hydrates and writes that same list back to
+     staging — where the merge dedups it to a no-op. Seed resolves or not, the
+     stored list only grows.
+     ============================================================ -->
+<script>
+  window.PROV_CONFIG = { fieldKeys: {
+    providers_json:      ['providers_json_staging'],
+    providers_summary:   ['providers_summary_staging'] } };
+  window.MEDS_CONFIG = { fieldKeys: {
+    medications_json:    ['medications_json_staging'],
+    medications_summary: ['medications_summary_staging'] } };
+</script>
