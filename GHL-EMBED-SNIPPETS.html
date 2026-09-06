@@ -81,8 +81,16 @@
      that input CANNOT be removed without a new CDN build. So the key keeps
      matching an element even after the GHL field is taken off the survey.
 
-     ⚠️ REMOVE THE CANONICAL FIELDS FROM THIS SURVEY, and understand the mechanism
-     precisely, because an earlier draft of this note stated it wrongly. What
+     ⚠️ REMOVE THE CANONICAL FIELDS FROM THIS SURVEY. Treat this as an UNMEASURED
+     PRECAUTION, not a verified fact: what was measured is that the four canonical
+     keys are PRESENT on the survey, not that an empty submitted input blanks the
+     stored value. That half has never been tested on this fleet. Do it anyway,
+     because it is free and because a blank DOES clear a LARGE_TEXT field on the
+     API path, which is how the fleet already lost this exact data once (see the
+     Rx summary field clobber incident).
+
+     Understand the mechanism precisely, because an earlier draft stated it
+     wrongly. What
      submits a value is a GHL FIELD BOUND ON THAT STEP, not merely an input
      carrying that name. The distinction matters: the widget's own hidden mirror
      named providers_json is unremovable, so if a bare name were enough to submit,
