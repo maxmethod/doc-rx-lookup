@@ -63,18 +63,45 @@
      shrink it. FIELD_KEYS is read at parse time, so this needs NO new CDN tag
      and does NOT change a funnel's existing @vX.Y.Z pin.
 
-     🩸 THE CANONICAL FIELDS MUST NOT BE ON THIS SURVEY AT ALL.
-     Not hidden, not empty, not present. A survey that still carries a
-     providers_json input submits it empty, which blanks the contact's canonical
-     value at exactly the moment the merge is about to read it — and the merge
-     would then faithfully preserve nothing. Remove providers_json,
-     providers_summary, medications_json and medications_summary from the survey
-     and add the four *_staging fields in their place.
+     TWO NEW FIELDS, NOT FOUR. There is deliberately no staging SUMMARY field:
+     the summary is derived, and the merge regenerates the canonical one from the
+     merged items, so a staging summary would never be read. The summary write is
+     suppressed with an empty array instead.
+
+     🩸 THE [] IS NOT A TYPO AND MUST STAY AN EMPTY ARRAY. setAll iterates
+     (Array.isArray(keys) ? keys : [keys]), so [] is a ZERO-ITERATION loop and the
+     summary write provably reaches nothing. Do not replace it with a placeholder
+     key name to make the config look symmetrical: a placeholder still runs a
+     querySelectorAll and merely relies on nothing matching, and any real field
+     name you invent becomes PERMANENT on ~60 accounts, because a snapshot cannot
+     delete a field.
+
+     Why not just leave providers_summary pointing at itself: the widget injects
+     its OWN <input type="hidden" name="providers_summary"> INSIDE GHL's form, and
+     that input CANNOT be removed without a new CDN build. So the key keeps
+     matching an element even after the GHL field is taken off the survey.
+
+     ⚠️ REMOVE THE CANONICAL FIELDS FROM THIS SURVEY, and understand the mechanism
+     precisely, because an earlier draft of this note stated it wrongly. What
+     submits a value is a GHL FIELD BOUND ON THAT STEP, not merely an input
+     carrying that name. The distinction matters: the widget's own hidden mirror
+     named providers_json is unremovable, so if a bare name were enough to submit,
+     the retarget below would itself blank canonical on every submission. The
+     design assumes the mirror is INERT and only GHL's bound field submits.
+
+     🩸 THAT ASSUMPTION IS UNMEASURED. Test it once before rolling out: see
+     "Step 0" in mm-policy-sync/infra/RX_MERGE_SETUP.md. If the mirror turns out
+     NOT to be inert, this whole staging approach needs rework, because the
+     offending input cannot be taken off the page.
+
+     Remove providers_json, providers_summary, medications_json and
+     medications_summary from the survey, and add the two *_json_staging fields in
+     their place. Removing a field FROM A SURVEY does not delete it: the canonical
+     fields stay on the contact and keep their data.
 
      ⚠️ A widget only writes into a field that is ON THE SAME STEP it sits on.
-     The four staging fields must be present (hidden is fine) on the step
-     carrying the widgets, exactly as SNAPSHOT-FIELDS.md describes for the
-     canonical ones.
+     Both staging fields must be present (hidden is fine) on the step carrying the
+     widgets, exactly as SNAPSHOT-FIELDS.md describes for the canonical ones.
 
      THE SEED LINE STAYS AND IS STILL HARMLESS. With the retarget in place the
      widget reads the (empty) staging field, falls through to the seed, and if
@@ -85,8 +112,8 @@
 <script>
   window.PROV_CONFIG = { fieldKeys: {
     providers_json:      ['providers_json_staging'],
-    providers_summary:   ['providers_summary_staging'] } };
+    providers_summary:   [] } };
   window.MEDS_CONFIG = { fieldKeys: {
     medications_json:    ['medications_json_staging'],
-    medications_summary: ['medications_summary_staging'] } };
+    medications_summary: [] } };
 </script>
