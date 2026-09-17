@@ -323,7 +323,13 @@ const RX_SEARCH_URL = (typeof window !== 'undefined' && window.MEDS_CONFIG
   && typeof window.MEDS_CONFIG.rxSearchUrl === 'string'
   && window.MEDS_CONFIG.rxSearchUrl.trim()) || null;
 
-function usingHealthSherpaSearch() { return !!RX_SEARCH_URL; }
+// Set to the HTTP status that disabled HealthSherpa mode for this page load, or
+// null while HS search is still believed usable. It is sticky on purpose: an
+// entitlement answer does not change mid page load, so one refusal is enough to
+// know, and re-asking on every keystroke would only replay the same refusal.
+let hsSearchUnavailable = null;
+
+function usingHealthSherpaSearch() { return !!RX_SEARCH_URL && hsSearchUnavailable === null; }
 
 // Search results are held here rather than serialized into data- attributes.
 // HealthSherpa entities carry a nested dosage_variations array that has no sane
@@ -337,12 +343,31 @@ async function searchMedicationsHS(query) {
     const url = `${RX_SEARCH_URL}${RX_SEARCH_URL.includes('?') ? '&' : '?'}q=${encodeURIComponent(query)}`;
     const res = await fetch(url, { credentials: 'same-origin' });
     if (!res.ok) {
-      // A 503 means the External API token is not configured yet, which is the
-      // expected state until HealthSherpa issues it. Everything else is a real
-      // failure. Either way the agent gets the manual-entry path, never a
-      // broken box.
-      console.error('HealthSherpa drug search failed:', res.status);
-      return [];
+      // 🩸 RETURNING null MEANS "FALL BACK TO RxNorm FOR THIS QUERY", never "no
+      // results". On 2026-09-16 this branch returned [] instead, so every account
+      // the proxy refuses rendered "No matches found" and medication search was
+      // dead fleet-wide: a Lion's Pride agent made 16 calls that day and got 16
+      // 403s and zero rows. 401, 403 and 503 are settled answers about this page
+      // load (not signed in, not entitled, token not configured yet), so they
+      // disable HS mode for the rest of it and every later keystroke goes
+      // straight to RxNorm. A non-entitled account therefore pays exactly one
+      // 403 per page load and is otherwise back to the pre-2026-09-16 behaviour.
+      if (res.status === 401 || res.status === 403 || res.status === 503) {
+        hsSearchUnavailable = res.status;
+        let code = null;
+        try {
+          const body = await res.json();
+          if (body && typeof body.code === 'string') code = body.code;
+        } catch (_) { /* not JSON, the status alone is the diagnosis */ }
+        // Log the status and the proxy's own code, never the query: what an
+        // agent types into a drug box is the start of a medication record.
+        console.warn('HealthSherpa drug search unavailable, falling back to RxNorm:', res.status, code || '');
+      } else {
+        // Anything else is transient, so leave HS mode armed and let the next
+        // keystroke try again.
+        console.warn('HealthSherpa drug search failed, falling back to RxNorm:', res.status);
+      }
+      return null;
     }
     const data = await res.json();
     const entities = (data && Array.isArray(data.entities)) ? data.entities : [];
@@ -359,8 +384,10 @@ async function searchMedicationsHS(query) {
       variations: Array.isArray(e.dosage_variations) ? e.dosage_variations : []
     })).filter(r => r.hs_rx_id);
   } catch (e) {
-    console.error('HealthSherpa drug search failed:', e);
-    return [];
+    // A thrown fetch is a network blip, not an answer about entitlement, so HS
+    // mode stays armed and only this query falls back to RxNorm.
+    console.warn('HealthSherpa drug search failed, falling back to RxNorm:', (e && e.message) || e);
+    return null;
   }
 }
 
@@ -538,9 +565,11 @@ const runMedSearch = debounce(async (q) => {
     return;
   }
   medLoading.style.display = 'block';
-  const results = usingHealthSherpaSearch()
-    ? await searchMedicationsHS(q)
-    : await searchMedications(q);
+  // null from the HS path means it could not answer, so RxNorm answers instead
+  // and renders exactly as it always has. An empty array is a real answer (HS
+  // knows the catalogue and has no match) and is left alone.
+  let results = usingHealthSherpaSearch() ? await searchMedicationsHS(q) : null;
+  if (results === null) results = await searchMedications(q);
   medLoading.style.display = 'none';
   lastResults = results;
 
