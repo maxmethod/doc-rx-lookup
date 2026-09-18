@@ -2,7 +2,7 @@
 
 ## Where knowledge lives — read this before writing a memory file
 
-**The brain is the Obsidian vault: `~/Desktop/Marshall Wiki v1`** (private repo
+**The brain is the Obsidian vault: `~/Marshall Wiki v1`** (private repo
 `maxmethod/marshall-wiki`). This repo holds code. Durable knowledge does not live here
 and does not live in the auto-memory directory.
 
