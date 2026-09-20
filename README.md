@@ -130,7 +130,7 @@ Paste each into a Custom Code / Custom HTML block. Ready-to-paste copies are in 
 <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-income.js"></script>
 ```
 
-> Pin `@vX.Y.Z` to a real tag, not `@main` (current stable: **`v2.4.2`**). Test on the **published** form/survey — GHL's in-builder preview may not run `<script>`.
+> Pin `@vX.Y.Z` to a real tag, not `@main` (current stable: **`v2.6.0`**). Test on the **published** form/survey — GHL's in-builder preview may not run `<script>`.
 
 ## What the snapshot must contain
 

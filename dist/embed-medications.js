@@ -46,7 +46,7 @@
     border-radius: var(--radius);
     padding: 20px;
     margin-bottom: 20px;
-  }#medications-lookup-widget#medications-lookup-widget .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }#medications-lookup-widget#medications-lookup-widget .section-title { font-size: 16px; font-weight: 600; margin: 0; }#medications-lookup-widget#medications-lookup-widget .section-count { color: var(--text-muted); font-size: 13px; }#medications-lookup-widget#medications-lookup-widget label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }#medications-lookup-widget#medications-lookup-widget input[type="text"], #medications-lookup-widget#medications-lookup-widget input[type="number"], #medications-lookup-widget#medications-lookup-widget select {
+  }#medications-lookup-widget#medications-lookup-widget .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }#medications-lookup-widget#medications-lookup-widget .section-title { font-size: 16px; font-weight: 600; margin: 0; }#medications-lookup-widget#medications-lookup-widget .section-count { color: var(--text-muted); font-size: 13px; }#medications-lookup-widget#medications-lookup-widget .chosen-drug { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 10px; }#medications-lookup-widget#medications-lookup-widget label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }#medications-lookup-widget#medications-lookup-widget input[type="text"], #medications-lookup-widget#medications-lookup-widget input[type="number"], #medications-lookup-widget#medications-lookup-widget select {
     width: 100%;
     padding: 9px 12px;
     font-size: 14px;
@@ -128,6 +128,7 @@
     </div>
 
     <div id="med-strength-block" style="display:none; margin-top:14px;">
+      <div id="med-chosen-drug" class="chosen-drug"></div>
       <label for="med-strength">Select strength &amp; form</label>
       <select id="med-strength"></select>
       <div class="rx-row" style="margin-top:10px;">
@@ -431,20 +432,35 @@ async function searchMedications(query) {
     const data = await res.json();
     const candidates = (data.approximateGroup && data.approximateGroup.candidate) || [];
     const seen = new Map();
+    // 🩸 approximateTerm returns the SAME rxcui more than once, and the UNNAMED copy can come
+    // first. Live for "lipitor": {rxcui:153165, name:undefined} then {rxcui:153165, name:"Lipitor"}.
+    // A plain first-wins dedup therefore threw away the named copy and then re-fetched the name it
+    // had already been handed. Prefer whichever copy has a name.
     for (const c of candidates) {
       if (!c.rxcui) continue;
-      if (!seen.has(c.rxcui)) seen.set(c.rxcui, c);
+      const prev = seen.get(c.rxcui);
+      if (!prev || (!prev.name && c.name)) seen.set(c.rxcui, c);
     }
+    // 🩸 A CODE IS NOT A NAME. This used to fall back to `RxCUI ${c.rxcui}` when the name could
+    // not be resolved, so the client was offered "RxCUI 1141110" as a medication to pick. Some
+    // concepts genuinely have no name: rxcui 1141110, the ONLY candidate approximateTerm returns for
+    // "lipi", answers {} on the RxNorm Name property. Such a row is unusable to anyone, so it is
+    // dropped rather than labelled.
+    // ⚠️ Consequence, accepted deliberately: a query whose only matches are unnamed now returns
+    // NOTHING and falls through to the manual-entry path below, which is the honest outcome. There is
+    // no better endpoint to fall back to; `drugs.json?name=lipi` returns 0 results, it needs a
+    // near-complete name.
     const withNames = await Promise.all(Array.from(seen.values()).slice(0, 6).map(async c => {
       if (c.name) return c;
       try {
         const nameRes = await fetch(`${RX_BASE}/rxcui/${c.rxcui}/property.json?propName=RxNorm%20Name`);
         const nameData = await nameRes.json();
         const props = nameData.propConceptGroup && nameData.propConceptGroup.propConcept;
-        return { ...c, name: (props && props[0] && props[0].propValue) || `RxCUI ${c.rxcui}` };
-      } catch { return { ...c, name: `RxCUI ${c.rxcui}` }; }
+        const resolved = props && props[0] && props[0].propValue;
+        return resolved ? { ...c, name: resolved } : null;
+      } catch { return null; }
     }));
-    return withNames;
+    return withNames.filter(Boolean);
   } catch (e) {
     console.error('RxNorm search failed:', e);
     return [];
@@ -500,6 +516,74 @@ function parseDrugName(name) {
     if (name.toLowerCase().includes(p.toLowerCase())) { dosageForm = p.toLowerCase(); break; }
   }
   return { strength, dosageForm };
+}
+
+/** Longest prefix shared by EVERY option name, cut at a word boundary.
+ *
+ *  RxNorm names a strength option as "<ingredient> <strength> <form> [<brand>]", so the shared head
+ *  is the ingredient and the tail is the part that actually varies. Stripping it turns eight rows of
+ *  "atorvastatin NN MG Oral Tablet [Lipitor]" into "NN MG Oral Tablet [Lipitor]".
+ *
+ *  SUBTRACTIVE ON PURPOSE: this never parses or interprets the string, so an option set that shares
+ *  no prefix simply keeps its full names. The failure mode is "no improvement", never a wrong split.
+ *
+ *  🩸 Do NOT replace this with "cut at the first digit". "24 HR metformin hydrochloride 500 MG
+ *  Extended Release Oral Tablet" STARTS with a digit. And do not drive it off parseDrugName: its
+ *  form list matches `Tablet` and silently drops "Extended Release", which is a pricing input. */
+function commonWordPrefix(names) {
+  if (names.length < 2) return '';
+  const split = names.map(n => n.split(' '));
+  const out = [];
+  for (let i = 0; i < split[0].length; i++) {
+    const w = split[0][i];
+    if (!split.every(ws => ws[i] === w)) break;
+    out.push(w);
+  }
+  // Never consume a whole label: if stripping would leave any option empty, strip nothing.
+  if (!out.length || split.some(ws => ws.length <= out.length)) return '';
+  return out.join(' ') + ' ';
+}
+
+/** Sort key for a strength option: [unit group, magnitude], ascending.
+ *  Mass units normalise to mg so "500 MCG" sorts below "1 MG"; ML/%/UNIT keep their own group so
+ *  unlike scales never interleave. Anything unparsed sinks to the bottom rather than to the top,
+ *  where it would be the default selection. */
+const MASS_TO_MG = { mcg: 0.001, mg: 1, g: 1000 };
+function strengthSortKey(name) {
+  const m = name.match(/(\d+(?:\.\d+)?)\s*(mcg|mg|g|ml|%|unit)/i);
+  if (!m) return ['\uffff', Number.POSITIVE_INFINITY];
+  const val = parseFloat(m[1]);
+  const unit = m[2].toLowerCase();
+  return unit in MASS_TO_MG ? ['', val * MASS_TO_MG[unit]] : [unit, val];
+}
+
+/** The visible label for one strength option.
+ *
+ *  RxNorm returns BOTH concepts for every strength: SCD is the generic and SBD is the branded one,
+ *  which is why each dosage appears twice. That is real data and worth keeping, since brand vs
+ *  generic drives formulary tier and cost, but "[Lipitor]" against a bare row is not a distinction
+ *  a client can read. So say it outright, off `type` rather than off the bracket text.
+ *
+ *  🩸 Read the marker from `type` (the RxNorm tty), never by regexing for "[...]". A generic name can
+ *  legitimately carry brackets, and an SBD whose bracket is missing would then silently read as the
+ *  generic, which is the one mix-up here that changes what the client is telling us they take. */
+function strengthLabel(opt, prefix) {
+  const base = prefix && opt.name.startsWith(prefix) ? opt.name.slice(prefix.length) : opt.name;
+  if (opt.type === 'SBD') {
+    const brand = base.match(/\[([^\]]+)\]\s*$/);
+    return brand ? `${base.slice(0, brand.index).trim()} (${brand[1]})` : `${base} (brand)`;
+  }
+  if (opt.type === 'SCD') return `${base} (generic)`;
+  return base;
+}
+
+function sortStrengthOptions(options) {
+  return options.slice().sort((a, b) => {
+    const ka = strengthSortKey(a.name), kb = strengthSortKey(b.name);
+    if (ka[0] !== kb[0]) return ka[0] < kb[0] ? -1 : 1;
+    if (ka[1] !== kb[1]) return ka[1] - kb[1];
+    return a.name.localeCompare(b.name);
+  });
 }
 
 // ============================================================
@@ -583,15 +667,23 @@ const runMedSearch = debounce(async (q) => {
     return;
   }
 
-  // The meta line names the source on purpose. An agent looking at a drug that
-  // did not price the way they expected should be able to see which catalogue
-  // it came from without reading JSON.
+  // The meta line names the SOURCE on purpose: an agent looking at a drug that did not price the
+  // way they expected should be able to see which catalogue it came from without reading JSON.
+  // HealthSherpa's category does that job. The RxNorm arm used to print "RxCUI: 12345", which is a
+  // code rather than a catalogue and told an agent nothing and a client less, so v2.6.0 dropped it
+  // and the row now carries no meta line at all.
+  //
+  // ⚠️ `|| 'Unknown'` is kept for the HS path only. v2.6.0 could drop it on the RxNorm side
+  // because searchMedications now filters out anything it cannot name, but searchMedicationsHS
+  // still maps `name` to '' when HealthSherpa gives no product name and only filters on hs_rx_id,
+  // so a nameless HS row can still reach here. Filtering those too is the obvious follow-up and is
+  // deliberately NOT done in this merge.
   medResults.innerHTML = results.map((r, i) => `
     <div class="result-item" data-idx="${i}">
       <div class="name">${escapeHtml(r.name || 'Unknown')}</div>
-      <div class="meta">${r.provider === 'healthsherpa'
-        ? escapeHtml(r.category || 'HealthSherpa')
-        : 'RxCUI: ' + escapeHtml(r.rxcui)}</div>
+      ${r.provider === 'healthsherpa'
+        ? `<div class="meta">${escapeHtml(r.category || 'HealthSherpa')}</div>`
+        : ''}
     </div>
   `).join('');
   medResults.classList.add('open');
@@ -625,11 +717,18 @@ async function selectMedication(rxcui, name) {
   if (details.strengthOptions.length === 0) {
     state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: [{ rxcui, name, type: 'BASE' }] };
   } else {
-    state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: details.strengthOptions };
+    // Sorted HERE rather than at render time so the <option> value, which is an index into this
+    // array, keeps pointing at the row the user actually picked.
+    state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: sortStrengthOptions(details.strengthOptions) };
   }
 
+  document.getElementById('med-chosen-drug').textContent = name;
+
+  // Label-only transform. `s.name` is untouched, so what gets STORED on add is exactly what it was
+  // before this change: no JSON, summary, dedup or merge behaviour moves.
+  const prefix = commonWordPrefix(state.medPending.strengthOptions.map(o => o.name));
   medStrengthSelect.innerHTML = state.medPending.strengthOptions
-    .map((s, i) => `<option value="${i}">${escapeHtml(s.name)}</option>`)
+    .map((s, i) => `<option value="${i}">${escapeHtml(strengthLabel(s, prefix))}</option>`)
     .join('');
 
   medStrengthBlock.style.display = 'block';
@@ -652,6 +751,16 @@ function selectMedicationHS(entity) {
     strengthOptions: dosageOptionsHS(entity)
   };
 
+  // Set the headline here too. `med-chosen-drug` is shared with the RxNorm path, and this block
+  // hides the search input, so without this the HS path would show either nothing or, worse, the
+  // drug name left over from a previous RxNorm selection.
+  document.getElementById('med-chosen-drug').textContent = entity.name;
+
+  // ⚠️ Deliberately NOT running the v2.6.0 prefix-strip / (generic) labelling here. Those are
+  // tuned to RxNorm's "<ingredient> <strength> <form> [<brand>]" shape and to its SCD/SBD types,
+  // neither of which HealthSherpa has. dosageOptionsHS already has its own labelling rule, and it
+  // is load-bearing: it must use product_proprietary_name rather than the _without_dosage form,
+  // because that field is not unique across variations and would render every option identically.
   medStrengthSelect.innerHTML = state.medPending.strengthOptions
     .map((s, i) => `<option value="${i}">${escapeHtml(s.name)}</option>`)
     .join('');
