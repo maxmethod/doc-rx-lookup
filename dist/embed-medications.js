@@ -46,7 +46,7 @@
     border-radius: var(--radius);
     padding: 20px;
     margin-bottom: 20px;
-  }#medications-lookup-widget#medications-lookup-widget .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }#medications-lookup-widget#medications-lookup-widget .section-title { font-size: 16px; font-weight: 600; margin: 0; }#medications-lookup-widget#medications-lookup-widget .section-count { color: var(--text-muted); font-size: 13px; }#medications-lookup-widget#medications-lookup-widget label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }#medications-lookup-widget#medications-lookup-widget input[type="text"], #medications-lookup-widget#medications-lookup-widget input[type="number"], #medications-lookup-widget#medications-lookup-widget select {
+  }#medications-lookup-widget#medications-lookup-widget .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }#medications-lookup-widget#medications-lookup-widget .section-title { font-size: 16px; font-weight: 600; margin: 0; }#medications-lookup-widget#medications-lookup-widget .section-count { color: var(--text-muted); font-size: 13px; }#medications-lookup-widget#medications-lookup-widget .chosen-drug { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 10px; }#medications-lookup-widget#medications-lookup-widget label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text); }#medications-lookup-widget#medications-lookup-widget input[type="text"], #medications-lookup-widget#medications-lookup-widget input[type="number"], #medications-lookup-widget#medications-lookup-widget select {
     width: 100%;
     padding: 9px 12px;
     font-size: 14px;
@@ -128,6 +128,7 @@
     </div>
 
     <div id="med-strength-block" style="display:none; margin-top:14px;">
+      <div id="med-chosen-drug" class="chosen-drug"></div>
       <label for="med-strength">Select strength &amp; form</label>
       <select id="med-strength"></select>
       <div class="rx-row" style="margin-top:10px;">
@@ -435,6 +436,26 @@ function strengthSortKey(name) {
   return unit in MASS_TO_MG ? ['', val * MASS_TO_MG[unit]] : [unit, val];
 }
 
+/** The visible label for one strength option.
+ *
+ *  RxNorm returns BOTH concepts for every strength: SCD is the generic and SBD is the branded one,
+ *  which is why each dosage appears twice. That is real data and worth keeping, since brand vs
+ *  generic drives formulary tier and cost, but "[Lipitor]" against a bare row is not a distinction
+ *  a client can read. So say it outright, off `type` rather than off the bracket text.
+ *
+ *  🩸 Read the marker from `type` (the RxNorm tty), never by regexing for "[...]". A generic name can
+ *  legitimately carry brackets, and an SBD whose bracket is missing would then silently read as the
+ *  generic, which is the one mix-up here that changes what the client is telling us they take. */
+function strengthLabel(opt, prefix) {
+  const base = prefix && opt.name.startsWith(prefix) ? opt.name.slice(prefix.length) : opt.name;
+  if (opt.type === 'SBD') {
+    const brand = base.match(/\[([^\]]+)\]\s*$/);
+    return brand ? `${base.slice(0, brand.index).trim()} (${brand[1]})` : `${base} (brand)`;
+  }
+  if (opt.type === 'SCD') return `${base} (generic)`;
+  return base;
+}
+
 function sortStrengthOptions(options) {
   return options.slice().sort((a, b) => {
     const ka = strengthSortKey(a.name), kb = strengthSortKey(b.name);
@@ -556,14 +577,13 @@ async function selectMedication(rxcui, name) {
     state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: sortStrengthOptions(details.strengthOptions) };
   }
 
+  document.getElementById('med-chosen-drug').textContent = name;
+
   // Label-only transform. `s.name` is untouched, so what gets STORED on add is exactly what it was
   // before this change: no JSON, summary, dedup or merge behaviour moves.
   const prefix = commonWordPrefix(state.medPending.strengthOptions.map(o => o.name));
   medStrengthSelect.innerHTML = state.medPending.strengthOptions
-    .map((s, i) => {
-      const label = prefix && s.name.startsWith(prefix) ? s.name.slice(prefix.length) : s.name;
-      return `<option value="${i}">${escapeHtml(label)}</option>`;
-    })
+    .map((s, i) => `<option value="${i}">${escapeHtml(strengthLabel(s, prefix))}</option>`)
     .join('');
 
   medStrengthBlock.style.display = 'block';
