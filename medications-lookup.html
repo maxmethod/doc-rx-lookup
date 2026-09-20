@@ -371,20 +371,35 @@ async function searchMedications(query) {
     const data = await res.json();
     const candidates = (data.approximateGroup && data.approximateGroup.candidate) || [];
     const seen = new Map();
+    // 🩸 approximateTerm returns the SAME rxcui more than once, and the UNNAMED copy can come
+    // first. Live for "lipitor": {rxcui:153165, name:undefined} then {rxcui:153165, name:"Lipitor"}.
+    // A plain first-wins dedup therefore threw away the named copy and then re-fetched the name it
+    // had already been handed. Prefer whichever copy has a name.
     for (const c of candidates) {
       if (!c.rxcui) continue;
-      if (!seen.has(c.rxcui)) seen.set(c.rxcui, c);
+      const prev = seen.get(c.rxcui);
+      if (!prev || (!prev.name && c.name)) seen.set(c.rxcui, c);
     }
+    // 🩸 A CODE IS NOT A NAME. This used to fall back to `RxCUI ${c.rxcui}` when the name could
+    // not be resolved, so the client was offered "RxCUI 1141110" as a medication to pick. Some
+    // concepts genuinely have no name: rxcui 1141110, the ONLY candidate approximateTerm returns for
+    // "lipi", answers {} on the RxNorm Name property. Such a row is unusable to anyone, so it is
+    // dropped rather than labelled.
+    // ⚠️ Consequence, accepted deliberately: a query whose only matches are unnamed now returns
+    // NOTHING and falls through to the manual-entry path below, which is the honest outcome. There is
+    // no better endpoint to fall back to; `drugs.json?name=lipi` returns 0 results, it needs a
+    // near-complete name.
     const withNames = await Promise.all(Array.from(seen.values()).slice(0, 6).map(async c => {
       if (c.name) return c;
       try {
         const nameRes = await fetch(`${RX_BASE}/rxcui/${c.rxcui}/property.json?propName=RxNorm%20Name`);
         const nameData = await nameRes.json();
         const props = nameData.propConceptGroup && nameData.propConceptGroup.propConcept;
-        return { ...c, name: (props && props[0] && props[0].propValue) || `RxCUI ${c.rxcui}` };
-      } catch { return { ...c, name: `RxCUI ${c.rxcui}` }; }
+        const resolved = props && props[0] && props[0].propValue;
+        return resolved ? { ...c, name: resolved } : null;
+      } catch { return null; }
     }));
-    return withNames;
+    return withNames.filter(Boolean);
   } catch (e) {
     console.error('RxNorm search failed:', e);
     return [];
@@ -440,6 +455,54 @@ function parseDrugName(name) {
     if (name.toLowerCase().includes(p.toLowerCase())) { dosageForm = p.toLowerCase(); break; }
   }
   return { strength, dosageForm };
+}
+
+/** Longest prefix shared by EVERY option name, cut at a word boundary.
+ *
+ *  RxNorm names a strength option as "<ingredient> <strength> <form> [<brand>]", so the shared head
+ *  is the ingredient and the tail is the part that actually varies. Stripping it turns eight rows of
+ *  "atorvastatin NN MG Oral Tablet [Lipitor]" into "NN MG Oral Tablet [Lipitor]".
+ *
+ *  SUBTRACTIVE ON PURPOSE: this never parses or interprets the string, so an option set that shares
+ *  no prefix simply keeps its full names. The failure mode is "no improvement", never a wrong split.
+ *
+ *  🩸 Do NOT replace this with "cut at the first digit". "24 HR metformin hydrochloride 500 MG
+ *  Extended Release Oral Tablet" STARTS with a digit. And do not drive it off parseDrugName: its
+ *  form list matches `Tablet` and silently drops "Extended Release", which is a pricing input. */
+function commonWordPrefix(names) {
+  if (names.length < 2) return '';
+  const split = names.map(n => n.split(' '));
+  const out = [];
+  for (let i = 0; i < split[0].length; i++) {
+    const w = split[0][i];
+    if (!split.every(ws => ws[i] === w)) break;
+    out.push(w);
+  }
+  // Never consume a whole label: if stripping would leave any option empty, strip nothing.
+  if (!out.length || split.some(ws => ws.length <= out.length)) return '';
+  return out.join(' ') + ' ';
+}
+
+/** Sort key for a strength option: [unit group, magnitude], ascending.
+ *  Mass units normalise to mg so "500 MCG" sorts below "1 MG"; ML/%/UNIT keep their own group so
+ *  unlike scales never interleave. Anything unparsed sinks to the bottom rather than to the top,
+ *  where it would be the default selection. */
+const MASS_TO_MG = { mcg: 0.001, mg: 1, g: 1000 };
+function strengthSortKey(name) {
+  const m = name.match(/(\d+(?:\.\d+)?)\s*(mcg|mg|g|ml|%|unit)/i);
+  if (!m) return ['\uffff', Number.POSITIVE_INFINITY];
+  const val = parseFloat(m[1]);
+  const unit = m[2].toLowerCase();
+  return unit in MASS_TO_MG ? ['', val * MASS_TO_MG[unit]] : [unit, val];
+}
+
+function sortStrengthOptions(options) {
+  return options.slice().sort((a, b) => {
+    const ka = strengthSortKey(a.name), kb = strengthSortKey(b.name);
+    if (ka[0] !== kb[0]) return ka[0] < kb[0] ? -1 : 1;
+    if (ka[1] !== kb[1]) return ka[1] - kb[1];
+    return a.name.localeCompare(b.name);
+  });
 }
 
 // ============================================================
@@ -520,8 +583,7 @@ const runMedSearch = debounce(async (q) => {
 
   medResults.innerHTML = results.map(r => `
     <div class="result-item" data-rxcui="${escapeHtml(r.rxcui)}" data-name="${escapeHtml(r.name || '')}">
-      <div class="name">${escapeHtml(r.name || 'Unknown')}</div>
-      <div class="meta">RxCUI: ${escapeHtml(r.rxcui)}</div>
+      <div class="name">${escapeHtml(r.name)}</div>
     </div>
   `).join('');
   medResults.classList.add('open');
@@ -550,11 +612,19 @@ async function selectMedication(rxcui, name) {
   if (details.strengthOptions.length === 0) {
     state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: [{ rxcui, name, type: 'BASE' }] };
   } else {
-    state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: details.strengthOptions };
+    // Sorted HERE rather than at render time so the <option> value, which is an index into this
+    // array, keeps pointing at the row the user actually picked.
+    state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: sortStrengthOptions(details.strengthOptions) };
   }
 
+  // Label-only transform. `s.name` is untouched, so what gets STORED on add is exactly what it was
+  // before this change: no JSON, summary, dedup or merge behaviour moves.
+  const prefix = commonWordPrefix(state.medPending.strengthOptions.map(o => o.name));
   medStrengthSelect.innerHTML = state.medPending.strengthOptions
-    .map((s, i) => `<option value="${i}">${escapeHtml(s.name)}</option>`)
+    .map((s, i) => {
+      const label = prefix && s.name.startsWith(prefix) ? s.name.slice(prefix.length) : s.name;
+      return `<option value="${i}">${escapeHtml(label)}</option>`;
+    })
     .join('');
 
   medStrengthBlock.style.display = 'block';
