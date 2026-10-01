@@ -353,13 +353,12 @@ async function getDrugDetails(rxcui) {
     const data = await res.json();
     const groups = (data.allRelatedGroup && data.allRelatedGroup.conceptGroup) || [];
     const drugForms = [];
-    const brands = new Set();
+    // 🩸 The BN group is deliberately NOT read. For an ingredient it lists every brand that CONTAINS
+    // it, combination products included (metformin: 14, the first being Kazano, alogliptin/metformin),
+    // so it says nothing about which brand, if any, the client takes. See sbdBrand.
     for (const g of groups) {
       if ((g.tty === 'SCD' || g.tty === 'SBD') && g.conceptProperties) {
         for (const p of g.conceptProperties) drugForms.push({ rxcui: p.rxcui, name: p.name, type: g.tty });
-      }
-      if (g.tty === 'BN' && g.conceptProperties) {
-        for (const p of g.conceptProperties) brands.add(p.name);
       }
     }
     const uniq = new Map();
@@ -367,10 +366,10 @@ async function getDrugDetails(rxcui) {
       const key = f.name.toLowerCase().replace(/^\[brand\]/, '').trim();
       if (!uniq.has(key)) uniq.set(key, f);
     }
-    return { strengthOptions: Array.from(uniq.values()), brandNames: Array.from(brands) };
+    return { strengthOptions: Array.from(uniq.values()) };
   } catch (e) {
     console.error('RxNorm details failed:', e);
-    return { strengthOptions: [], brandNames: [] };
+    return { strengthOptions: [] };
   }
 }
 
@@ -454,6 +453,16 @@ function strengthLabel(opt, prefix) {
   }
   if (opt.type === 'SCD') return `${base} (generic)`;
   return base;
+}
+
+/** The brand an option names, read from the trailing "[...]" of an SBD; null for anything else.
+ *
+ *  🩸 Gated on `type` for the same reason as strengthLabel: a generic is never given a brand, even
+ *  if its name happens to carry brackets. */
+function sbdBrand(opt) {
+  if (opt.type !== 'SBD') return null;
+  const m = opt.name.match(/\[([^\]]+)\]\s*$/);
+  return m ? m[1].trim() : null;
 }
 
 function sortStrengthOptions(options) {
@@ -570,11 +579,11 @@ async function selectMedication(rxcui, name) {
   medLoading.style.display = 'none';
 
   if (details.strengthOptions.length === 0) {
-    state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: [{ rxcui, name, type: 'BASE' }] };
+    state.medPending = { rxcui, name, strengthOptions: [{ rxcui, name, type: 'BASE' }] };
   } else {
     // Sorted HERE rather than at render time so the <option> value, which is an index into this
     // array, keeps pointing at the row the user actually picked.
-    state.medPending = { rxcui, name, brand_name: details.brandNames[0] || null, strengthOptions: sortStrengthOptions(details.strengthOptions) };
+    state.medPending = { rxcui, name, strengthOptions: sortStrengthOptions(details.strengthOptions) };
   }
 
   document.getElementById('med-chosen-drug').textContent = name;
@@ -604,11 +613,17 @@ document.getElementById('med-add').onclick = async () => {
 
   const ndc = await getNdcForRxcui(selected.rxcui);
 
+  // 🩸 The brand comes from the option the client PICKED, never from the drug they searched for.
+  // Through v2.6.0 a generic pick took the first brand RxNorm lists for the searched ingredient, so
+  // generic metformin was saved as "Kazano" and generic amlodipine as "Tribenzor", and a branded
+  // pick from an ingredient search saved the ingredient as its brand (Glucophage was lost). A generic
+  // has no brand. A branded pick names its own in the SBD's "[...]"; the search term is only the
+  // fallback, and it is right when the client searched by brand.
   const isBranded = selected.type === 'SBD';
   const entry = {
     id: `med_${Date.now()}`,
     name: isBranded ? state.medPending.name : selected.name.split(/\s+\d/)[0].trim(),
-    brand_name: isBranded ? state.medPending.name : (state.medPending.brand_name || null),
+    brand_name: isBranded ? (sbdBrand(selected) || state.medPending.name) : null,
     strength: parsed.strength,
     dosage_form: parsed.dosageForm,
     frequency,

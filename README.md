@@ -65,7 +65,7 @@ attribute path was **removed in v2.3.0**).
 ```html
 <div id="provider-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="provider-lookup-widget-seed">{{ contact.custom.providers_json }}</script>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.4.2/dist/embed-providers.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.6.1/dist/embed-providers.js"></script>
 ```
 
 A `window.<CFG>.initial<Thing>` JS global is still read as a secondary override. Unresolved
@@ -130,7 +130,7 @@ Paste each into a Custom Code / Custom HTML block. Ready-to-paste copies are in 
 <script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-income.js"></script>
 ```
 
-> Pin `@vX.Y.Z` to a real tag, not `@main` (current stable: **`v2.6.0`**). Test on the **published** form/survey — GHL's in-builder preview may not run `<script>`.
+> Pin `@vX.Y.Z` to a real tag, not `@main` (current stable: **`v2.6.1`**). Test on the **published** form/survey — GHL's in-builder preview may not run `<script>`.
 
 ## What the snapshot must contain
 
