@@ -2,8 +2,11 @@
      doc-rx-lookup — generic GHL embeds for the quote form/survey
      Paste each block into its own Custom Code / Custom HTML element.
      - Color comes from the account's {{custom_values.brand_primary_color}}.
-     - Pin @vX.Y.Z to a real tag (not @main). Current stable = v2.4.2
-       (>= v2.3.0 required for the seed). Rx-frequency "Other" reveals a required
+     - Pinned to v2.6.0, the current stable tag. Always pin a real tag, never @main
+       (>= v2.3.0 required for the seed). v2.5.0 added optional quantity and days
+       supply on medications; v2.6.0 stopped offering RxCUIs as drug names and
+       made the strength picker readable (sorted, generic vs brand labelled).
+       Doctors, coverage and income are unchanged since v2.4.2. Rx-frequency "Other" reveals a required
        free-text specify that folds into the summary (no new field, no wiring
        change). The income widget has no "Other" popup — its Source/Employer field
        is optional and is where an "Other" source gets described (popup removed in v2.4.2).
@@ -23,24 +26,29 @@
      local-storage of a PRIOR submission on that funnel (same browser) — it is
      not a cross-device / server-side-by-identity lookup. Omit the seed line to
      skip the feature entirely.
+     UNPROVEN (2026-10-01): in the one end-to-end test (2026-09-05, PA v4.0 survey,
+     per-contact trigger link, contact holding providers_json) the seed rendered
+     EMPTY. The fleet's merge tags use {{contact.<key>}} without ".custom.", and
+     the retest with that syntax has not run. Leaving the line in is harmless
+     (an empty seed is ignored), but do not count on it filling anything.
      ============================================================ -->
 
 <!-- Doctors / Providers  ->  providers_json, providers_summary -->
 <div id="provider-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="provider-lookup-widget-seed">{{ contact.custom.providers_json }}</script>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-providers.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.6.0/dist/embed-providers.js"></script>
 
 <!-- Medications / Rx  ->  medications_json, medications_summary -->
 <div id="medications-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="medications-lookup-widget-seed">{{ contact.custom.medications_json }}</script>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-medications.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.6.0/dist/embed-medications.js"></script>
 
 <!-- Current Coverage  ->  current_coverage_json, current_coverage_summary -->
 <div id="coverage-lookup-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="coverage-lookup-widget-seed">{{ contact.custom.current_coverage_json }}</script>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-coverage.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.6.0/dist/embed-coverage.js"></script>
 
 <!-- Income Sources  ->  income_json, income_summary, household_income (auto-total) -->
 <div id="income-sources-widget" data-primary-color="{{custom_values.brand_primary_color}}"></div>
 <script type="application/json" id="income-sources-widget-seed">{{ contact.custom.income_json }}</script>
-<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@vX.Y.Z/dist/embed-income.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/maxmethod/doc-rx-lookup@v2.6.0/dist/embed-income.js"></script>
