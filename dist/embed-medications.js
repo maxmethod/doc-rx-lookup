@@ -60,6 +60,10 @@
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+
+  
+  @media (max-width: 767px), (pointer: coarse) {#medications-lookup-widget#medications-lookup-widget input[type="text"], #medications-lookup-widget#medications-lookup-widget input[type="number"], #medications-lookup-widget#medications-lookup-widget select { font-size: 16px; }
   }#medications-lookup-widget#medications-lookup-widget input.err, #medications-lookup-widget#medications-lookup-widget select.err { border-color: var(--danger); }#medications-lookup-widget#medications-lookup-widget input.err:focus, #medications-lookup-widget#medications-lookup-widget select.err:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); }#medications-lookup-widget#medications-lookup-widget .search-wrap { position: relative; }#medications-lookup-widget#medications-lookup-widget .search-results {
     position: absolute;
     top: calc(100% + 4px);
@@ -494,14 +498,23 @@ async function getDrugDetails(rxcui) {
   }
 }
 
-async function getNdcForRxcui(rxcui) {
-  try {
-    const url = `${RX_BASE}/rxcui/${rxcui}/ndcs.json`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const ndcs = (data.ndcGroup && data.ndcGroup.ndcList && data.ndcGroup.ndcList.ndc) || [];
-    return ndcs[0] || null;
-  } catch (e) { return null; }
+// Cached per rxcui and fetched as soon as a strength is showing, so an add from the survey's NEXT
+// tap (which cannot wait for the network) still carries the NDC in the usual case.
+const ndcFetches = new Map();   // rxcui -> Promise of the NDC (or null)
+const ndcResolved = new Map();  // rxcui -> NDC (or null), once that fetch has finished
+function getNdcForRxcui(rxcui) {
+  if (!ndcFetches.has(rxcui)) {
+    ndcFetches.set(rxcui, (async () => {
+      try {
+        const url = `${RX_BASE}/rxcui/${rxcui}/ndcs.json`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const ndcs = (data.ndcGroup && data.ndcGroup.ndcList && data.ndcGroup.ndcList.ndc) || [];
+        return ndcs[0] || null;
+      } catch (e) { return null; }
+    })().then(ndc => { ndcResolved.set(rxcui, ndc); return ndc; }));
+  }
+  return ndcFetches.get(rxcui);
 }
 
 function parseDrugName(name) {
@@ -742,6 +755,7 @@ async function selectMedication(rxcui, name) {
 
   medStrengthBlock.style.display = 'block';
   medSearchBlock.style.display = 'none';
+  prefetchSelectedNdc();
 }
 
 /** HealthSherpa's equivalent of selectMedication. No second network call: their
@@ -778,26 +792,48 @@ function selectMedicationHS(entity) {
   medSearchBlock.style.display = 'none';
 }
 
+function selectedStrength() {
+  return state.medPending.strengthOptions[parseInt(medStrengthSelect.value, 10)];
+}
+function isHSPending() {
+  return !!state.medPending && state.medPending.provider === 'healthsherpa';
+}
+// HS picks carry no rxcui (see the add below), so there is no NDC to prefetch for them.
+function prefetchSelectedNdc() {
+  if (state.medPending && !isHSPending()) getNdcForRxcui(selectedStrength().rxcui);
+}
+medStrengthSelect.addEventListener('change', prefetchSelectedNdc);
+
 document.getElementById('med-cancel').onclick = () => resetMedSearch();
 
 document.getElementById('med-add').onclick = async () => {
-  if (!state.medPending) return;
-  const idx = parseInt(medStrengthSelect.value, 10);
-  const selected = state.medPending.strengthOptions[idx];
-  const parsed = parseDrugName(selected.name);
+  const pending = state.medPending;
+  if (!pending) return;
   const frequency = resolveFreq(medFreqSelect, medFreqOther);
   if (frequency === null) return; // "Other" selected but no text entered
-  const applicant_name = document.getElementById('med-applicant').value.trim() || null;
-  const { quantity, days_supply } = readQtyDays('med-quantity', 'med-days-supply');
-
-  const isHS = state.medPending.provider === 'healthsherpa';
-
+  const fields = readPendingMed(frequency);
   // 🩸 rxcui and ndc are RxNorm-only. In HS mode they stay null rather than
   // being filled from anything on the HS entity: the namespaces are disjoint,
   // and a wrong code here is worse than a missing one. Likewise hs_rx_id is
   // null on the RxNorm path. Exactly one of the two is ever populated, and
   // `source` says which.
-  const ndc = isHS ? null : await getNdcForRxcui(selected.rxcui);
+  const ndc = isHSPending() ? null : await getNdcForRxcui(fields.selected.rxcui);
+  if (state.medPending !== pending) return; // the NEXT tap already added it while the NDC loaded
+  addPendingMed(fields, ndc);
+};
+
+function readPendingMed(frequency) {
+  return {
+    selected: selectedStrength(),
+    frequency,
+    applicant_name: document.getElementById('med-applicant').value.trim() || null,
+    ...readQtyDays('med-quantity', 'med-days-supply')
+  };
+}
+
+function addPendingMed({ selected, frequency, applicant_name, quantity, days_supply }, ndc) {
+  const parsed = parseDrugName(selected.name);
+  const isHS = isHSPending();
 
   // 🩸 The brand comes from the option the client PICKED, never from the drug they searched for.
   // Through v2.6.0 a generic pick took the first brand RxNorm lists for the searched ingredient, so
@@ -843,7 +879,8 @@ document.getElementById('med-add').onclick = async () => {
   state.medications.push(entry);
   renderMedications();
   resetMedSearch();
-};
+  return entry;
+}
 
 function resetMedSearch() {
   state.medPending = null;
@@ -876,10 +913,16 @@ function showMedManualEntry() {
 document.getElementById('med-manual-toggle').onclick = (e) => { e.preventDefault(); showMedManualEntry(); };
 document.getElementById('med-manual-cancel').onclick = resetMedSearch;
 
-document.getElementById('med-manual-add').onclick = () => {
+document.getElementById('med-manual-add').onclick = () => addManualMed(true);
+
+// interactive=false is the leave-the-slide path: no alert and no focus (the survey is already
+// moving on), a blank name skips the entry, and "Other" left unexplained is saved as "Other".
+function addManualMed(interactive) {
   const name = document.getElementById('med-manual-name').value.trim();
-  if (!name) { alert('Medication name is required.'); return; }
-  const frequency = resolveFreq(medManualFreqSelect, medManualFreqOther);
+  if (!name) { if (interactive) alert('Medication name is required.'); return; }
+  const frequency = interactive
+    ? resolveFreq(medManualFreqSelect, medManualFreqOther)
+    : resolveFreqOnLeave(medManualFreqSelect, medManualFreqOther);
   if (frequency === null) return; // "Other" selected but no text entered
   const entry = {
     id: `med_${Date.now()}`,
@@ -900,7 +943,46 @@ document.getElementById('med-manual-add').onclick = () => {
    'med-manual-quantity','med-manual-days-supply'].forEach(id => document.getElementById(id).value = '');
   renderMedications();
   resetMedSearch();
-};
+}
+
+// ============================================================
+// LEAVING THE SLIDE WITH A MEDICATION NOT YET ADDED
+// ------------------------------------------------------------
+// Tapping a search result only opens the strength + frequency block; the drug is saved on "Add
+// medication". On a phone the survey's NEXT arrow sits right under that button, and tapping NEXT
+// instead advanced the slide and dropped the drug silently (reproduced 2026-10-15 on MIG's OEP
+// survey). So a tap on the survey's NEXT/SUBMIT (div.ghl-footer-next), or on a form's submit
+// button, adds whatever is waiting first. Capture phase on document, so it runs before GHL's own
+// click handler on the button. The add is synchronous because GHL reads the fields straight after:
+// it uses the NDC already fetched for the shown strength and fills it in later if that fetch is
+// still running. A manual entry is added only if it has a name.
+// ============================================================
+const LEAVE_SELECTOR = '.ghl-footer-next, button[type="submit"], input[type="submit"]';
+
+function resolveFreqOnLeave(select, input) {
+  return select.value === 'Other' ? (input.value.trim() || 'Other') : select.value;
+}
+
+function addPendingOnLeave() {
+  if (state.medPending) {
+    const fields = readPendingMed(resolveFreqOnLeave(medFreqSelect, medFreqOther));
+    if (isHSPending()) { addPendingMed(fields, null); return; } // no rxcui, so no NDC to wait for
+    const rxcui = fields.selected.rxcui;
+    const entry = addPendingMed(fields, ndcResolved.has(rxcui) ? ndcResolved.get(rxcui) : null);
+    if (!ndcResolved.has(rxcui)) {
+      getNdcForRxcui(rxcui).then(ndc => {
+        if (ndc && state.medications.includes(entry)) { entry.ndc = ndc; syncHiddenFields(); }
+      });
+    }
+  } else if (medManualBlock.style.display === 'block') {
+    addManualMed(false);
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.closest && e.target.closest(LEAVE_SELECTOR)) addPendingOnLeave();
+}, true);
+document.addEventListener('submit', addPendingOnLeave, true);
 
 function renderMedications() {
   const list = document.getElementById('med-list');
