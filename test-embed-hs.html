@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embed Test: Medications in HealthSherpa mode (mocked proxy)</title>
+<!--
+  HS mode is what the CRM popup runs (mm-contact-module public/embed/medications.html sets
+  MEDS_CONFIG.rxSearchUrl to its /api/rx-search proxy). That proxy needs the module session and an
+  External token, so this page answers the same URL from a fetch shim instead. The entities are MOCK
+  rows in HealthSherpa's response shape (id, product_proprietary_name, _without_dosage,
+  substance_name, dosage_variations), not real catalogue data.
+
+  ?proxy=403  the proxy refuses, as it does for an account that is not entitled: the widget must
+              fall back to RxNorm for the rest of the page load.
+  The footer is the same GHL-style NEXT as test-embed-survey.html, so the leave-the-slide add runs
+  in HS mode too. Results land in window.__harnessLog and on the page.
+-->
+<style>
+  body { font-family: Roboto, sans-serif; margin: 0; background: #eef1f5; }
+  .ghl-survey { max-width: 640px; margin: 0 auto; background: #fff; min-height: 100vh; }
+  .ghl-question { display: none; padding: 16px; }
+  .ghl-page-current { display: block; }
+  .ghl-question h3 { font-size: 18px; margin: 0 0 12px; }
+  .ghl-footer { display: flex; justify-content: flex-end; height: 50px; border-top: 1px solid #ddd; }
+  .ghl-footer-next { width: 60px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #0006b4; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: #f6f6f6; padding: 8px; }
+</style>
+</head>
+<body>
+<div class="ghl-survey">
+  <form id="ghl-form" onsubmit="return false;">
+    <div class="ghl-question slide-no-1 ghl-page-current">
+      <h3>Medications (HS mode)</h3>
+      <div id="medications-lookup-widget" data-primary-color="#6500c1"></div>
+      <textarea data-q="medications_json" name="FIELD_MED_JSON" style="display:none"></textarea>
+      <textarea data-q="medications_summary" name="FIELD_MED_SUM" style="display:none"></textarea>
+    </div>
+    <div class="ghl-question slide-no-2">
+      <h3>Done</h3>
+      <pre id="harness-out"></pre>
+    </div>
+  </form>
+  <div class="ghl-footer">
+    <div role="button" tabindex="0" class="ghl-btn ghl-footer-next" aria-label="NEXT">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9h10M10 5l4 4-4 4"/></svg>
+    </div>
+  </div>
+</div>
+
+<script>
+  const PROXY = new URLSearchParams(location.search).get('proxy') || 'ok';
+  const MOCK_URL = '/mock-hs-search';
+  // Two families. The first lists itself among its variations and the second does not, the
+  // inconsistency dosageOptionsHS dedups around.
+  const MOCK_ENTITIES = [
+    { id: 90001, product_proprietary_name: 'Mockpen: 3 Ml Mockulin 100 Unt/Ml Pen Injector',
+      product_proprietary_name_without_dosage: 'Mockpen: Mockulin Pen Injector', substance_name: 'Branded / Pen Injector',
+      dosage_variations: [
+        { id: 90001, product_proprietary_name: 'Mockpen: 3 Ml Mockulin 100 Unt/Ml Pen Injector' },
+        { id: 90002, product_proprietary_name: 'Mockpen: 3 Ml Mockulin 200 Unt/Ml Pen Injector' } ] },
+    { id: 90010, product_proprietary_name: 'Mockstatin 20 Mg Oral Tablet',
+      product_proprietary_name_without_dosage: 'Mockstatin Oral Tablet', substance_name: 'Generic / Tablet',
+      dosage_variations: [ { id: 90011, product_proprietary_name: 'Mockstatin 40 Mg Oral Tablet' } ] }
+  ];
+  window.__hsCalls = [];
+  const realFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input.url;
+    if (url.startsWith(MOCK_URL)) {
+      window.__hsCalls.push(url);
+      if (PROXY === '403') {
+        return Promise.resolve(new Response(JSON.stringify({ code: 'not_entitled' }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } }));
+      }
+      const q = (new URL(url, location.href).searchParams.get('q') || '').toLowerCase();
+      const entities = MOCK_ENTITIES.filter(e => e.product_proprietary_name.toLowerCase().includes(q));
+      return Promise.resolve(new Response(JSON.stringify({ entities }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    }
+    return realFetch(input, init);
+  };
+  // Must be set BEFORE the embed loads; the widget reads it once at parse time.
+  window.MEDS_CONFIG = { rxSearchUrl: MOCK_URL };
+
+  window.__harnessLog = [];
+  function record(event) {
+    const v = document.querySelector('[data-q="medications_json"]').value;
+    let count = 0; try { count = JSON.parse(v).count; } catch (e) { count = v ? 'unparsed' : 0; }
+    window.__harnessLog.push({ event, medications: count, medications_json: v });
+    document.getElementById('harness-out').textContent = JSON.stringify(window.__harnessLog, null, 2);
+  }
+  document.querySelector('.ghl-footer-next').addEventListener('click', () => {
+    const cur = document.querySelector('.ghl-page-current');
+    record('next-click');
+    const next = cur.nextElementSibling;
+    if (next && next.classList.contains('ghl-question')) {
+      cur.classList.remove('ghl-page-current');
+      next.classList.add('ghl-page-current');
+    }
+  });
+</script>
+<script src="dist/embed-medications.js"></script>
+</body>
+</html>

@@ -60,6 +60,10 @@
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+
+  
+  @media (max-width: 767px), (pointer: coarse) {#provider-lookup-widget#provider-lookup-widget input[type="text"], #provider-lookup-widget#provider-lookup-widget input[type="number"], #provider-lookup-widget#provider-lookup-widget select { font-size: 16px; }
   }#provider-lookup-widget#provider-lookup-widget .search-wrap { position: relative; }#provider-lookup-widget#provider-lookup-widget .search-results {
     position: absolute;
     top: calc(100% + 4px);
@@ -518,7 +522,9 @@ function selectProvider(ctResult) {
 
 document.getElementById('prov-cancel').onclick = resetProvSearch;
 
-document.getElementById('prov-add').onclick = () => {
+document.getElementById('prov-add').onclick = () => addPendingProvider();
+
+function addPendingProvider() {
   if (!state.provPending) return;
   const r = state.provPending;
   const fullName = [r.first_name, r.last_name].filter(Boolean).join(' ');
@@ -538,7 +544,7 @@ document.getElementById('prov-add').onclick = () => {
   state.providers.push(entry);
   renderProviders();
   resetProvSearch();
-};
+}
 
 function resetProvSearch() {
   state.provPending = null;
@@ -557,10 +563,14 @@ function showProvManualEntry() {
 document.getElementById('prov-manual-toggle').onclick = (e) => { e.preventDefault(); showProvManualEntry(); };
 document.getElementById('prov-manual-cancel').onclick = resetProvSearch;
 
-document.getElementById('prov-manual-add').onclick = () => {
+document.getElementById('prov-manual-add').onclick = () => addManualProvider(true);
+
+// interactive=false is the leave-the-slide path: an incomplete entry is skipped without an alert,
+// since the survey is already moving on.
+function addManualProvider(interactive) {
   const first = document.getElementById('prov-manual-first').value.trim();
   const last = document.getElementById('prov-manual-last').value.trim();
-  if (!first || !last) { alert('First and last name are required.'); return; }
+  if (!first || !last) { if (interactive) alert('First and last name are required.'); return; }
   const entry = {
     id: `prov_${Date.now()}`,
     full_name: `${first} ${last}`,
@@ -582,7 +592,29 @@ document.getElementById('prov-manual-add').onclick = () => {
     .forEach(id => document.getElementById(id).value = '');
   renderProviders();
   resetProvSearch();
-};
+}
+
+// ============================================================
+// LEAVING THE SLIDE WITH A DOCTOR NOT YET ADDED
+// ------------------------------------------------------------
+// Tapping a search result only opens the Provider type block; the doctor is saved on "Add
+// doctor". On a phone the survey's NEXT arrow sits right under that button, and tapping NEXT
+// instead advanced the slide and dropped the doctor silently (reproduced 2026-10-15 on MIG's OEP
+// survey). So a tap on the survey's NEXT/SUBMIT (div.ghl-footer-next), or on a form's submit
+// button, adds whatever is waiting first. Capture phase on document, so it runs before GHL's own
+// click handler on the button. A manual entry is added only if first and last name are filled.
+// ============================================================
+const LEAVE_SELECTOR = '.ghl-footer-next, button[type="submit"], input[type="submit"]';
+
+function addPendingOnLeave() {
+  if (state.provPending) addPendingProvider();
+  else if (provManualBlock.style.display === 'block') addManualProvider(false);
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.closest && e.target.closest(LEAVE_SELECTOR)) addPendingOnLeave();
+}, true);
+document.addEventListener('submit', addPendingOnLeave, true);
 
 function renderProviders() {
   const list = document.getElementById('prov-list');
