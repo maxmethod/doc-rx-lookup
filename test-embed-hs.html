@@ -65,18 +65,22 @@
   ];
   window.__hsCalls = [];
   const realFetch = window.fetch.bind(window);
+  const answer = (status, body) => Promise.resolve(new Response(JSON.stringify(body),
+    { status, headers: { 'Content-Type': 'application/json' } }));
   window.fetch = (input, init) => {
     const url = typeof input === 'string' ? input : input.url;
     if (url.startsWith(MOCK_URL)) {
-      window.__hsCalls.push(url);
-      if (PROXY === '403') {
-        return Promise.resolve(new Response(JSON.stringify({ code: 'not_entitled' }),
-          { status: 403, headers: { 'Content-Type': 'application/json' } }));
-      }
-      const q = (new URL(url, location.href).searchParams.get('q') || '').toLowerCase();
+      const method = (init && init.method) || 'GET';
+      window.__hsCalls.push({ method, url });
+      // Same refusals as the real proxy (2026-10-27): the search is a POST with the query in a JSON
+      // body, and a query on the URL is refused, because the URL is what request logs keep.
+      if (method !== 'POST') return answer(503, { code: 'use_post' });
+      if (new URL(url, location.href).searchParams.has('q')) return answer(400, { code: 'context_in_url' });
+      if (PROXY === '403') return answer(403, { code: 'not_entitled' });
+      let q = '';
+      try { q = String(JSON.parse(init.body).q || '').toLowerCase(); } catch (e) { return answer(400, { code: 'bad_request' }); }
       const entities = MOCK_ENTITIES.filter(e => e.product_proprietary_name.toLowerCase().includes(q));
-      return Promise.resolve(new Response(JSON.stringify({ entities }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      return answer(200, { entities });
     }
     return realFetch(input, init);
   };

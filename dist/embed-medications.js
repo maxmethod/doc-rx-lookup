@@ -345,8 +345,18 @@ let lastResults = [];
 // ---- HealthSherpa -------------------------------------------------------
 async function searchMedicationsHS(query) {
   try {
-    const url = `${RX_SEARCH_URL}${RX_SEARCH_URL.includes('?') ? '&' : '?'}q=${encodeURIComponent(query)}`;
-    const res = await fetch(url, { credentials: 'same-origin' });
+    // 🩸 THE QUERY GOES IN THE BODY, NEVER THE URL. The platform's request log
+    // keeps every full URL, and the proxy URL carries the surface's context, so
+    // `?q=` there wrote what an agent typed into a drug box next to whatever
+    // else the URL named. In the CRM popup that included the contact id:
+    // measured 2026-10-27, 910 of 911 logged searches in 30 days paired a
+    // contact with a drug. A POST body is not logged by anything on the way.
+    const res = await fetch(RX_SEARCH_URL, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: query })
+    });
     if (!res.ok) {
       // 🩸 RETURNING null MEANS "FALL BACK TO RxNorm FOR THIS QUERY", never "no
       // results". On 2026-09-16 this branch returned [] instead, so every account
